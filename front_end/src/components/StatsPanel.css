@@ -1,0 +1,273 @@
+/* ══════════════════════════════════════════════
+   StatsPanel – Quarter-arc (top-left)
+   ══════════════════════════════════════════════ */
+
+.stats-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 190px;
+  height: 190px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ── Quarter-circle backdrop – rich forest green ── */
+.stats-panel__arc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-bottom-right-radius: 100%;
+
+  background:
+    radial-gradient(circle at 0% 0%,
+      #071d08 0%,
+      #0e3512 20%,
+      #165a20 42%,
+      #1e7a2c 58%,
+      transparent 72%
+    );
+
+  box-shadow:
+    inset 3px -3px 0 rgba(80, 220, 80, 0.18),
+    4px 4px 20px rgba(10, 60, 20, 0.5);
+
+  filter: drop-shadow(2px 3px 1px rgba(0, 0, 0, 0.6));
+}
+
+/* Glowing inner arc ring */
+.stats-panel__arc::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-bottom-right-radius: 100%;
+  background:
+    radial-gradient(circle at 0% 0%,
+      transparent 0%,
+      transparent 84%,
+      rgba(100, 240, 100, 0.22) 86%,
+      transparent 89%
+    );
+}
+
+/* Fine diagonal grain */
+.stats-panel__arc::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-bottom-right-radius: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(60, 180, 60, 0.04) 0px,
+    rgba(60, 180, 60, 0.04) 2px,
+    transparent 2px,
+    transparent 9px
+  );
+}
+
+/* ── Content block ── */
+.stats-panel__content {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: all;
+}
+
+/* ── Energy row ── */
+.stats-row--energy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-icon {
+  font-size: 1.3rem;
+  filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.7));
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.stats-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stats-bar-track {
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(80, 210, 80, 0.4);
+  border-radius: 6px;
+  height: 11px;
+  overflow: hidden;
+  width: 96px;
+}
+
+.stats-bar-fill {
+  background: linear-gradient(90deg, #3ec43e 0%, #8ef040 60%, #c8f880 100%);
+  border-radius: 6px;
+  box-shadow: 0 0 8px rgba(100, 255, 60, 0.7);
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.stats-bar-label {
+  color: #b8f088;
+  font-family: 'Courier New', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.stats-bar-label small {
+  color: rgba(160, 220, 120, 0.65);
+  font-size: 0.65rem;
+}
+
+/* ── Coin / Gem rows ── */
+.stats-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.stats-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.stats-value {
+  color: #ffe566;
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-shadow:
+    1px 1px 0 rgba(0,0,0,0.9),
+    0 0 10px rgba(255, 220, 40, 0.5);
+}
+
+.stats-value--gem {
+  color: #7ce8ff;
+  text-shadow:
+    1px 1px 0 rgba(0,0,0,0.9),
+    0 0 10px rgba(80, 200, 255, 0.5);
+}
+
+.stats-tag {
+  color: rgba(160, 230, 130, 0.6);
+  font-family: 'Courier New', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.7);
+  text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════
+   Circular Location Button (Map Overview Toggle)
+   ══════════════════════════════════════════════ */
+
+.stats-location-btn {
+  position: absolute;
+  left: 142px;
+  top: 132px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  padding: 0;
+  margin: 0;
+  border: 3px solid #103a19;
+  background: radial-gradient(circle at 35% 30%, #46cf67 0%, #2ba548 55%, #166428 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.45),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.45),
+    0 4px 6px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(40, 180, 70, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease;
+  user-select: none;
+  z-index: 20;
+}
+
+.stats-location-btn:hover {
+  transform: scale(1.12);
+  filter: drop-shadow(0 0 8px rgba(80, 240, 100, 0.8));
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.6),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.45),
+    0 6px 12px rgba(0, 0, 0, 0.6),
+    0 0 14px rgba(80, 250, 120, 0.7);
+}
+
+.stats-location-btn:active {
+  transform: scale(0.92);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Active overview mode (glowing) */
+.stats-location-btn--active {
+  border-color: #ffd700;
+  background: radial-gradient(circle at 35% 30%, #5ceb7e 0%, #30b852 50%, #15742c 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.6),
+    0 0 16px rgba(255, 215, 0, 0.85),
+    0 4px 8px rgba(0, 0, 0, 0.6);
+  animation: stats-btn-glow 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes stats-btn-glow {
+  0% {
+    box-shadow:
+      inset 0 2px 2px rgba(255, 255, 255, 0.6),
+      0 0 10px rgba(255, 215, 0, 0.6),
+      0 4px 6px rgba(0, 0, 0, 0.5);
+  }
+  100% {
+    box-shadow:
+      inset 0 2px 3px rgba(255, 255, 255, 0.8),
+      0 0 20px rgba(255, 225, 60, 0.95),
+      0 6px 12px rgba(0, 0, 0, 0.6);
+  }
+}
+
+.stats-location-btn__inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.stats-location-svg {
+  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.65));
+}
+
+.stats-location-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: linear-gradient(135deg, #ff4d4f 0%, #d91c20 100%);
+  color: #ffffff;
+  font-family: 'Courier New', monospace;
+  font-size: 0.55rem;
+  font-weight: 900;
+  padding: 1px 4px;
+  border-radius: 8px;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.04em;
+}
+

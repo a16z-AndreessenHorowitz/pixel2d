@@ -1,0 +1,253 @@
+/* ══════════════════════════════════════════════
+   QuestPanel – Quarter-arc (top-right)
+   Pixel-art paper note with red pin
+   ══════════════════════════════════════════════ */
+
+.quest-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 190px;
+  height: 190px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ── Quarter-circle – deep ocean blue ── */
+.quest-panel__arc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-bottom-left-radius: 100%;
+
+  background:
+    radial-gradient(circle at 100% 0%,
+      #060e28 0%,
+      #0a1d55 22%,
+      #0f3290 44%,
+      #1a4ec0 60%,
+      transparent 72%
+    );
+
+  box-shadow:
+    inset -3px -3px 0 rgba(80, 160, 255, 0.22),
+    -4px 4px 20px rgba(10, 30, 120, 0.5);
+
+  filter: drop-shadow(2px 3px 1px rgba(0, 0, 0, 0.6));
+}
+
+/* Inner glowing arc ring */
+.quest-panel__arc::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-bottom-left-radius: 100%;
+  background:
+    radial-gradient(circle at 100% 0%,
+      transparent 0%,
+      transparent 84%,
+      rgba(80, 180, 255, 0.28) 86%,
+      transparent 89%
+    );
+}
+
+/* Fine diagonal grain */
+.quest-panel__arc::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-bottom-left-radius: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(60, 140, 255, 0.04) 0px,
+    rgba(60, 140, 255, 0.04) 2px,
+    transparent 2px,
+    transparent 9px
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Pixel-art paper note
+   ═══════════════════════════════════════════ */
+
+.quest-note {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 96px;
+  pointer-events: all;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(3px 5px 0 rgba(0, 0, 0, 0.6));
+  animation: note-sway 4.5s ease-in-out infinite;
+}
+
+@keyframes note-sway {
+  0%, 100% { transform: rotate(-1.2deg); }
+  50%       { transform: rotate(1.8deg);  }
+}
+
+/* ── Pin ── */
+.quest-note__pin {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: -3px;
+}
+
+.pin-head {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 33% 28%, #ff8080 10%, #d41010 55%, #8a0a00 100%);
+  border: 2.5px solid #5a0400;
+  box-shadow:
+    0 3px 0 rgba(0,0,0,0.55),
+    inset 0 -2px 3px rgba(0,0,0,0.35),
+    inset 3px 3px 4px rgba(255,160,160,0.55);
+}
+
+.pin-needle {
+  width: 4px;
+  height: 10px;
+  background: linear-gradient(180deg, #ddd 0%, #999 100%);
+  border-radius: 0 0 3px 3px;
+  box-shadow: 1px 0 0 rgba(0,0,0,0.3);
+}
+
+/* ── Paper body ── */
+.quest-note__body {
+  background: #f8edcc;
+  border: 2.5px solid #c4a060;
+  border-radius: 3px;
+  width: 100%;
+  padding: 8px 10px 6px;
+  position: relative;
+
+  /* Ruled-paper texture */
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent         0px,
+    transparent         13px,
+    rgba(170,138,65,0.16) 13px,
+    rgba(170,138,65,0.16) 14.5px
+  );
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.65),
+    2px 3px 0 rgba(0,0,0,0.22);
+}
+
+/* Left margin red line */
+.quest-note__body::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 16px;
+  width: 1.5px;
+  background: rgba(220, 80, 80, 0.25);
+}
+
+/* Folded corner bottom-right */
+.quest-note__body::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 0; height: 0;
+  border-style: solid;
+  border-width: 0 0 12px 12px;
+  border-color: transparent transparent #c4a060 transparent;
+  filter: drop-shadow(-1px -1px 0 rgba(0,0,0,0.15));
+}
+
+/* ── Checkmark lines ── */
+.quest-note__checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.check-line__box {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #b89050;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.55);
+  color: #b0b0b0;
+  font-size: 0.6rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.check-line--done .check-line__box {
+  color: #2e9a2e;
+  border-color: #2e9a2e;
+  background: rgba(46, 154, 46, 0.14);
+}
+
+.check-line__bar {
+  flex: 1;
+  height: 2.5px;
+  background: rgba(150, 118, 50, 0.22);
+  border-radius: 2px;
+}
+
+.check-line--done .check-line__bar {
+  background: rgba(60, 170, 60, 0.4);
+}
+
+/* ── Big count number ── */
+.quest-note__count {
+  font-family: 'Courier New', monospace;
+  font-size: 3rem;
+  font-weight: 900;
+  color: #b0609a;
+  line-height: 0.95;
+  text-align: center;
+  letter-spacing: -0.03em;
+  text-shadow:
+    2px 3px 0 rgba(100, 30, 80, 0.45),
+    -1px -1px 0 rgba(255, 200, 240, 0.55);
+}
+
+/* ── Footer strip ── */
+.quest-note__footer {
+  background: linear-gradient(180deg, #e8d49a 0%, #d4b870 100%);
+  border: 2.5px solid #c4a060;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  color: #5e3e18;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.45rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 4px 6px;
+  text-align: center;
+  width: 100%;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.25);
+}
+
+.quest-note__sub {
+  color: #8a5a22;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

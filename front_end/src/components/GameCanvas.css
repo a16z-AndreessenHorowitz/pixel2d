@@ -1,0 +1,22 @@
+.game-canvas-frame {
+  background: #76b94d;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.game-canvas-host {
+  display: flex;
+  height: 100%;
+  position: relative;
+  width: 100%;
+}
+
+.game-canvas-host canvas {
+  background: transparent !important;
+  display: block;
+  image-rendering: pixelated;
+  height: 100% !important;
+  width: 100% !important;
+}

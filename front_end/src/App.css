@@ -1,0 +1,44 @@
+.app-shell {
+  min-height: 100svh;
+  background: #4d853d;
+}
+
+.app-main {
+  min-height: 100svh;
+}
+
+.page-section {
+  padding-bottom: 48px;
+  padding-top: 48px;
+}
+
+.section-kicker {
+  color: #6b7f36;
+  font-size: 0.8rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.page-heading {
+  margin-bottom: 24px;
+  max-width: 680px;
+}
+
+.page-heading h1 {
+  color: var(--ink);
+  font-weight: 900;
+  margin: 0;
+}
+
+.page-heading h1 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1;
+}
+
+@media (max-width: 575px) {
+  .page-section {
+    padding-bottom: 30px;
+    padding-top: 30px;
+  }
+}

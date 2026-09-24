@@ -1,0 +1,102 @@
+/* ── Game page shell ── */
+
+.game-page {
+  background: #070913;
+  height: 100svh;
+  min-height: 560px;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  width: 100vw;
+}
+
+.game-page button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  touch-action: none;
+}
+
+.game-title,
+.game-controls,
+.game-toolbar {
+  position: fixed;
+  z-index: 4;
+}
+
+/* ── Game title (centre top) ── */
+.game-title {
+  color: rgba(255, 255, 255, 0.8);
+  left: 50%;
+  text-align: center;
+  text-shadow: 2px 2px 0 rgba(38, 84, 39, 0.55);
+  top: 19px;
+  transform: translateX(-50%);
+}
+
+.game-title span { display: block; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.18em; }
+.game-title strong { color: #fff3b2; font-family: monospace; font-size: 0.9rem; }
+
+/* ── D-pad controls ── */
+.game-controls {
+  bottom: 24px;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(2, 44px);
+  left: 22px;
+}
+
+.game-controls button {
+  background: rgba(38, 69, 67, 0.78);
+  border: 2px solid #a4c4a0;
+  border-radius: 9px;
+  box-shadow: 0 3px 0 #223e36, inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: #e8f2c7;
+  font-size: 1.25rem;
+}
+
+.game-controls button:active { background: #b3d948; color: #29482c; transform: translateY(2px); }
+.control-up { grid-column: 2; grid-row: 1; }
+.control-left { grid-column: 1; grid-row: 2; }
+.control-down { grid-column: 2; grid-row: 2; }
+.control-right { grid-column: 3; grid-row: 2; }
+
+/* ── Bottom toolbar ── */
+.game-toolbar {
+  align-items: stretch;
+  background: rgba(24, 57, 75, 0.93);
+  border: 3px solid #1d3854;
+  border-radius: 17px;
+  bottom: 13px;
+  box-shadow: 0 4px 0 rgba(22, 38, 45, 0.65), inset 0 1px 0 #608298;
+  display: flex;
+  gap: 3px;
+  left: 50%;
+  padding: 5px;
+  transform: translateX(-50%);
+}
+
+.game-toolbar button {
+  background: rgba(36, 91, 100, 0.85);
+  border: 1px solid #6da1a2 !important;
+  border-radius: 10px;
+  color: #f8f1bc;
+  min-height: 56px;
+  min-width: 56px;
+  position: relative;
+}
+
+.game-toolbar button:first-child,
+.game-toolbar button:last-child { color: #fff; font-size: 1.2rem; min-width: 42px; }
+.game-toolbar .tool-selected { background: #c1df4b; color: #254235; box-shadow: inset 0 0 0 2px #fbf0a4; }
+.game-toolbar small { font-size: 0.55rem; left: 5px; position: absolute; top: 3px; }
+.game-toolbar span { display: block; font-size: 0.45rem; font-weight: 900; margin-top: 3px; }
+
+@media (max-width: 700px) {
+  .game-title { display: none; }
+  .game-toolbar { max-width: calc(100% - 110px); overflow-x: auto; }
+  .game-toolbar button { flex: 0 0 49px; min-width: 49px; }
+  .game-toolbar span { display: none; }
+  .game-controls { bottom: 18px; left: 14px; }
+}
