@@ -47,7 +47,7 @@ export const crops: CropDefinition[] = [
     id: 'watermelon',
     name: 'Dưa hấu',
     scale: 0.14,
-    growDurationMs: 50000, // 50 giây
+    growDurationMs: 45000, // 45 giây
     harvestCoins: 40,
     frames: ['crop-watermelon-1', 'crop-watermelon-2', 'crop-watermelon-3'],
   },

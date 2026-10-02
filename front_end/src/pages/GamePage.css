@@ -173,3 +173,352 @@
   .tool-icon { height: 38px; width: 38px; }
   .game-controls { bottom: 18px; left: 14px; }
 }
+
+/* =========================================================
+   INVENTORY
+   ========================================================= */
+
+.inventory-panel {
+  position: fixed;
+  z-index: 10;
+
+  left: 50%;
+  bottom: 104px;
+
+  width: min(620px, calc(100vw - 32px));
+
+  transform: translateX(-50%);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(21, 47, 60, 0.98),
+      rgba(11, 30, 41, 0.98)
+    );
+
+  border: 2px solid #4d8798;
+  border-radius: 16px;
+
+  box-shadow:
+    0 7px 0 rgba(5, 12, 18, 0.75),
+    0 0 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(180, 230, 240, 0.2);
+
+  padding: 12px;
+}
+
+
+/* =========================================================
+   Inventory header
+   ========================================================= */
+
+.inventory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 10px;
+  padding: 0 3px;
+}
+
+.inventory-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inventory-header strong {
+  color: #efffd8;
+
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.inventory-header span {
+  color: #9ec2ce;
+
+  font-size: 0.65rem;
+}
+
+
+/* =========================================================
+   Close button
+   ========================================================= */
+
+.inventory-close {
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(40, 76, 92, 0.9);
+
+  border: 1px solid #4f8595 !important;
+  border-radius: 8px;
+
+  color: #d9f5ff;
+  font-size: 1.2rem;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.inventory-close:hover {
+  background: rgba(58, 102, 119, 0.95);
+}
+
+
+/* =========================================================
+   Inventory grid
+   ========================================================= */
+
+.inventory-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(10, minmax(42px, 1fr));
+
+  gap: 6px;
+
+  padding: 4px;
+}
+
+
+/* =========================================================
+   Inventory slot
+   ========================================================= */
+
+.inventory-slot {
+  aspect-ratio: 1 / 1;
+
+  min-width: 0;
+
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(19, 48, 62, 0.95),
+      rgba(11, 31, 42, 0.95)
+    );
+
+  border: 2px solid #285568;
+  border-radius: 8px;
+
+  box-shadow:
+    inset 0 1px 0 rgba(120, 190, 205, 0.12),
+    0 2px 0 rgba(4, 15, 21, 0.7);
+
+  transition:
+    background 0.1s,
+    border-color 0.1s,
+    transform 0.1s;
+}
+
+.inventory-slot:hover {
+  border-color: #62a5b7;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(29, 65, 80, 0.98),
+      rgba(16, 42, 54, 0.98)
+    );
+}
+
+.inventory-slot-filled {
+  cursor: grab;
+}
+
+.inventory-slot-filled:active {
+  cursor: grabbing;
+}
+
+
+/* =========================================================
+   Inventory item
+   ========================================================= */
+
+.inventory-item {
+  width: 100%;
+  height: 100%;
+
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inventory-item img {
+  width: 80%;
+  height: 80%;
+
+  object-fit: contain;
+
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+
+  user-select: none;
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   Quantity badge
+   ========================================================= */
+
+.item-quantity {
+  position: absolute;
+
+  right: 2px;
+  bottom: 1px;
+
+  min-width: 16px;
+  height: 16px;
+
+  padding: 0 3px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.78);
+
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 5px;
+
+  color: #ffffff;
+
+  font-size: 0.6rem;
+  font-weight: 900;
+}
+
+
+/* =========================================================
+   Slot number
+   ========================================================= */
+
+.inventory-slot-number {
+  position: absolute;
+
+  top: 2px;
+  left: 3px;
+
+  color: rgba(160, 210, 220, 0.5);
+
+  font-size: 0.45rem;
+  font-weight: 700;
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   Hint
+   ========================================================= */
+
+.inventory-hint {
+  margin-top: 8px;
+  padding: 5px 6px;
+
+  color: #8fb9c5;
+
+  font-size: 0.58rem;
+  text-align: center;
+}
+
+
+/* =========================================================
+   Debug reset button
+   ========================================================= */
+
+.inventory-reset {
+  display: block;
+
+  margin: 5px auto 0;
+
+  padding: 4px 8px;
+
+  background: rgba(70, 50, 40, 0.7);
+
+  border: 1px solid #806050 !important;
+  border-radius: 6px;
+
+  color: #cdb7a7;
+
+  font-size: 0.55rem;
+}
+
+.inventory-reset:hover {
+  background: rgba(100, 65, 50, 0.8);
+}
+
+
+/* =========================================================
+   Active inventory button
+   ========================================================= */
+
+.game-toolbar .toolbar-menu-active {
+  background: rgba(42, 102, 91, 0.95);
+  border-color: #75d9b1 !important;
+
+  box-shadow:
+    0 0 0 2px rgba(117, 217, 177, 0.2),
+    inset 0 1px 0 rgba(200, 255, 220, 0.2);
+}
+
+
+/* =========================================================
+   Empty toolbar slot
+   ========================================================= */
+
+.game-toolbar .toolbar-empty {
+  opacity: 0.65;
+
+  border-style: dashed !important;
+}
+
+.game-toolbar .toolbar-empty-label {
+  color: #64818c;
+
+  font-size: 0.4rem;
+}
+
+
+/* =========================================================
+   Responsive inventory
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .inventory-panel {
+    bottom: 92px;
+
+    width: calc(100vw - 20px);
+
+    padding: 8px;
+  }
+
+  .inventory-grid {
+    grid-template-columns:
+      repeat(5, minmax(42px, 1fr));
+
+    gap: 5px;
+  }
+
+  .inventory-slot {
+    min-height: 48px;
+  }
+
+  .inventory-hint {
+    display: none;
+  }
+}
