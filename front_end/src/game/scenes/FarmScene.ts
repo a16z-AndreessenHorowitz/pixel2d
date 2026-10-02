@@ -1,6 +1,8 @@
 import Phaser from 'phaser'
 import { FarmPlot } from '../objects/FarmPlot'
 import { Player } from '../objects/Player'
+import { crops } from '../data/crops'
+import type { CropId } from '../data/crops'
 
 // Total map dimensions
 const mapWidth = 2400
@@ -14,6 +16,9 @@ const roadWidth = 110
 // Zone 1: Farm Grid settings
 const plotSize = 44
 const plotGap = 4
+
+// Grass tile scaling (điều chỉnh kích thước hạt cỏ / vân cỏ trên toàn map)
+const grassTileScale = 0.5
 
 interface RoamingAnimal {
   sprite: Phaser.GameObjects.Sprite
@@ -30,6 +35,8 @@ export class FarmScene extends Phaser.Scene {
   private isOverview = false
   private readonly defaultZoom = 1.85
   private savedPlayerPos = { x: dividerCenterX, y: 680 }
+  /** Tool đang được chọn từ React toolbar */
+  private activeTool = 'watering-can'
 
   constructor() {
     super('FarmScene')
@@ -50,6 +57,13 @@ export class FarmScene extends Phaser.Scene {
     this.load.image('dirt-initial', '/assets/corp/tilled_light_dirt_final.png')
     this.load.image('dirt-planted', '/assets/corp/cracked_dirt_final.png')
     this.load.image('dirt-watered', '/assets/corp/plain_dirt_bottom_final.png')
+
+    // ── Preload Crop Frames (Corn, Rice, Strawberry, Pumpkin, Watermelon) ──
+    crops.forEach((crop) => {
+      crop.frames.forEach((frameKey, index) => {
+        this.load.image(frameKey, `/assets/crops/${crop.id}-${index + 1}.png`)
+      })
+    })
 
     // ── Architecture & Buildings ──
     this.load.image('house', '/assets/objects/house.png')
@@ -98,7 +112,7 @@ export class FarmScene extends Phaser.Scene {
     })
 
     // ── Grass Sheet Texture & Nature Decals ──
-    this.load.image('grass-texture', '/assets/grass-macro-512.png')
+    this.load.image('grass-texture', '/assets/grass-pixel-warm512.png')
     this.load.image('flower-white', '/assets/flower-white.png')
     this.load.image('flower-yellow', '/assets/flower-yellow.png')
     this.load.image('flower-daisy', '/assets/flower-daisy.png')
@@ -130,9 +144,24 @@ export class FarmScene extends Phaser.Scene {
     this.player = new Player(this, dividerCenterX, 680)
     this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12)
 
-    // Player touch/mouse movement
+    // Player touch/mouse movement (chỉ di chuyển khi không click vào farm plot)
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.player?.moveTo(pointer.worldX, pointer.worldY)
+      // Nếu pointer đang over một interactive object (FarmPlot), không di chuyển player
+      if (!pointer.downElement || (pointer.downElement as HTMLElement).tagName === 'CANVAS') {
+        this.player?.moveTo(pointer.worldX, pointer.worldY)
+      }
+    })
+
+    // Lắng nghe toolbar tool-change từ React
+    const onToolChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tool: string }>
+      if (customEvent.detail?.tool) {
+        this.activeTool = customEvent.detail.tool
+      }
+    }
+    window.addEventListener('farm-tool-changed', onToolChange)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener('farm-tool-changed', onToolChange)
     })
 
     // Setup Map Overview Listeners
@@ -286,6 +315,7 @@ export class FarmScene extends Phaser.Scene {
       islandH,
       'grass-texture'
     )
+    grassTileSprite.setTileScale(grassTileScale, grassTileScale)
     grassTileSprite.setDepth(-18)
 
     // Apply smooth rounded corner geometry mask to the grass tileSprite
@@ -298,25 +328,25 @@ export class FarmScene extends Phaser.Scene {
     bgGfx.lineStyle(4, 0x8ed35a, 0.8)
     bgGfx.strokeRoundedRect(mapPadding, mapPadding, islandW, islandH, 40)
 
-    // Scatter nature flower and pebble decals from the grass sheet
+    // Scatter nature flower and pebble decals from the grass sheet (scaled down to match pixel art)
     const natureDecals = [
-      { key: 'flower-white', x: 260, y: 140, scale: 0.9 },
-      { key: 'flower-yellow', x: 420, y: 120, scale: 0.85 },
-      { key: 'flower-daisy', x: 860, y: 150, scale: 0.85 },
-      { key: 'pebbles', x: 220, y: 560, scale: 0.8 },
-      { key: 'flower-yellow', x: 740, y: 580, scale: 0.9 },
-      { key: 'flower-white', x: 920, y: 520, scale: 0.85 },
-      { key: 'flower-daisy', x: 1420, y: 180, scale: 0.9 },
-      { key: 'flower-yellow', x: 1980, y: 160, scale: 0.85 },
-      { key: 'flower-white', x: 2180, y: 220, scale: 0.9 },
-      { key: 'pebbles', x: 1360, y: 560, scale: 0.8 },
-      { key: 'flower-daisy', x: 2120, y: 620, scale: 0.9 },
-      { key: 'pebbles', x: 240, y: 1240, scale: 0.85 },
-      { key: 'flower-yellow', x: 800, y: 1260, scale: 0.9 },
-      { key: 'flower-white', x: 1420, y: 1260, scale: 0.85 },
-      { key: 'flower-daisy', x: 2050, y: 1220, scale: 0.9 },
-      { key: 'flower-white', x: 1540, y: 720, scale: 0.85 },
-      { key: 'flower-yellow', x: 2020, y: 760, scale: 0.85 },
+      { key: 'flower-white', x: 260, y: 140, scale: 0.45 },
+      { key: 'flower-yellow', x: 420, y: 120, scale: 0.45 },
+      { key: 'flower-daisy', x: 860, y: 150, scale: 0.45 },
+      { key: 'pebbles', x: 220, y: 560, scale: 0.45 },
+      { key: 'flower-yellow', x: 740, y: 580, scale: 0.45 },
+      { key: 'flower-white', x: 920, y: 520, scale: 0.45 },
+      { key: 'flower-daisy', x: 1420, y: 180, scale: 0.45 },
+      { key: 'flower-yellow', x: 1980, y: 160, scale: 0.45 },
+      { key: 'flower-white', x: 2180, y: 220, scale: 0.45 },
+      { key: 'pebbles', x: 1360, y: 560, scale: 0.45 },
+      { key: 'flower-daisy', x: 2120, y: 620, scale: 0.45 },
+      { key: 'pebbles', x: 240, y: 1240, scale: 0.45 },
+      { key: 'flower-yellow', x: 800, y: 1260, scale: 0.45 },
+      { key: 'flower-white', x: 1420, y: 1260, scale: 0.45 },
+      { key: 'flower-daisy', x: 2050, y: 1220, scale: 0.45 },
+      { key: 'flower-white', x: 1540, y: 720, scale: 0.45 },
+      { key: 'flower-yellow', x: 2020, y: 760, scale: 0.45 },
     ]
 
     for (const d of natureDecals) {
@@ -359,22 +389,7 @@ export class FarmScene extends Phaser.Scene {
     roadGfx.lineStyle(3, 0x937c56, 0.8)
     roadGfx.strokeRect(400, crossY, 1600, crossH)
 
-    // Add decorative grass tufts scattered around
-    const tuftGfx = this.add.graphics().setDepth(-15)
-    tuftGfx.fillStyle(0x568f2f, 0.5)
-    const tuftPoints = [
-      { x: 180, y: 140 }, { x: 420, y: 120 }, { x: 860, y: 150 },
-      { x: 220, y: 560 }, { x: 740, y: 580 }, { x: 920, y: 520 },
-      { x: 1420, y: 180 }, { x: 1980, y: 160 }, { x: 2180, y: 220 },
-      { x: 1360, y: 560 }, { x: 2120, y: 620 },
-      { x: 240, y: 1240 }, { x: 800, y: 1260 },
-      { x: 1420, y: 1260 }, { x: 2050, y: 1220 },
-    ]
-    for (const p of tuftPoints) {
-      tuftGfx.fillCircle(p.x, p.y, 14)
-      tuftGfx.fillCircle(p.x + 8, p.y - 4, 11)
-      tuftGfx.fillCircle(p.x - 7, p.y + 3, 9)
-    }
+    // (Tuft circular graphics removed to keep the pixel grass clean and crisp)
   }
 
   /**
@@ -399,19 +414,28 @@ export class FarmScene extends Phaser.Scene {
     farmGfx.lineStyle(3, 0x3d2716, 0.8)
     farmGfx.strokeRoundedRect(plotA_X - 8, plotA_Y - 8, fieldA_W + 16, fieldA_H + 16, 8)
 
-    // Populate FarmPlot instances for Field A
+    // Field A – tất cả ô bắt đầu trống
     for (let r = 0; r < plotA_Rows; r++) {
       for (let c = 0; c < plotA_Cols; c++) {
         const px = plotA_X + c * (plotSize + plotGap) + plotSize / 2
         const py = plotA_Y + r * (plotSize + plotGap) + plotSize / 2
-        const status = r < 2 ? 'watered' : r < 4 ? 'planted' : 'initial'
         const plot = new FarmPlot(this, {
           col: c,
           row: r,
           x: px,
           y: py,
           size: plotSize,
-          status,
+          status: 'empty',
+          onHarvest: (crop) => {
+            window.dispatchEvent(new CustomEvent('farm-harvest', { detail: { crop } }))
+          },
+        })
+        plot.setDepth(20 + r)
+        // Click vào plot → dùng tool hiện tại
+        plot.setInteractive()
+        plot.on('pointerdown', (_ptr: Phaser.Input.Pointer, _lx: number, _ly: number, event: Phaser.Types.Input.EventData) => {
+          event.stopPropagation()
+          plot.handleTool(this.activeTool)
         })
         this.add.existing(plot)
       }
@@ -432,18 +456,27 @@ export class FarmScene extends Phaser.Scene {
     farmGfx.lineStyle(3, 0x3d2716, 0.8)
     farmGfx.strokeRoundedRect(plotB_X - 8, plotB_Y - 8, fieldB_W + 16, fieldB_H + 16, 8)
 
+    // Field B – tất cả ô bắt đầu trống
     for (let r = 0; r < plotB_Rows; r++) {
       for (let c = 0; c < plotB_Cols; c++) {
         const px = plotB_X + c * (plotSize + plotGap) + plotSize / 2
         const py = plotB_Y + r * (plotSize + plotGap) + plotSize / 2
-        const status = c % 2 === 0 ? 'planted' : 'initial'
         const plot = new FarmPlot(this, {
           col: c,
           row: r,
           x: px,
           y: py,
           size: plotSize,
-          status,
+          status: 'empty',
+          onHarvest: (crop) => {
+            window.dispatchEvent(new CustomEvent('farm-harvest', { detail: { crop } }))
+          },
+        })
+        plot.setDepth(20 + r)
+        plot.setInteractive()
+        plot.on('pointerdown', (_ptr: Phaser.Input.Pointer, _lx: number, _ly: number, event: Phaser.Types.Input.EventData) => {
+          event.stopPropagation()
+          plot.handleTool(this.activeTool)
         })
         this.add.existing(plot)
       }
