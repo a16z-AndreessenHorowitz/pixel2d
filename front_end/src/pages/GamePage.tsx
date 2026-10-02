@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { GameCanvas } from '../components/GameCanvas'
 import { StatsPanel } from '../components/StatsPanel'
 import { QuestPanel } from '../components/QuestPanel'
@@ -36,13 +36,29 @@ const TOOLS: ToolSlot[] = [
 
 export function GamePage() {
   const [selectedTool, setSelectedTool] = useState<ToolId>('watering-can')
-
+  const [coins, setCoins] = useState(player.coins)
   // Phát event để Phaser scene biết tool đang active
   const selectTool = (tool: ToolId) => {
     setSelectedTool(tool)
     window.dispatchEvent(new CustomEvent('farm-tool-changed', { detail: { tool } }))
   }
+  useEffect(() => {
+  const handleFarmHarvest = (event: Event) => {
+    const customEvent = event as CustomEvent
+    const crop = customEvent.detail?.crop
 
+    if (crop && typeof crop.harvestCoins === 'number') {
+      setCoins((prevCoins) => prevCoins + crop.harvestCoins)
+    }
+  }
+
+  window.addEventListener('farm-harvest', handleFarmHarvest)
+
+  return () => {
+    window.removeEventListener('farm-harvest', handleFarmHarvest)
+  }
+}, [])
+  
   return (
     <section className="game-page" aria-label="Pixel Farm game">
       <GameCanvas />
@@ -51,7 +67,7 @@ export function GamePage() {
       <StatsPanel
         energy={player.energy}
         maxEnergy={100}
-        coins={player.coins}
+        coins={coins}
         gems={player.level}
       />
 
