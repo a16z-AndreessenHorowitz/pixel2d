@@ -3,7 +3,7 @@ import { FarmPlot } from '../objects/FarmPlot'
 import { Player } from '../objects/Player'
 import { crops } from '../data/crops'
 import type { CropId } from '../data/crops'
-
+import { FishingSystem } from '../fishing/fishingSystem'
 // Total map dimensions
 const mapWidth = 2400
 const mapHeight = 1400
@@ -30,6 +30,7 @@ interface RoamingAnimal {
 
 export class FarmScene extends Phaser.Scene {
   private player?: Player
+  private fishingSystem?: FishingSystem
   private chickens: RoamingAnimal[] = []
   private cows: RoamingAnimal[] = []
   private isOverview = false
@@ -143,7 +144,10 @@ export class FarmScene extends Phaser.Scene {
     // 5. Initialize Player at central crossway
     this.player = new Player(this, dividerCenterX, 680)
     this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12)
-
+    this.fishingSystem = new FishingSystem(
+  this,
+  this.player,
+)
     // Player touch/mouse movement (chỉ di chuyển khi không click vào farm plot)
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       // Nếu pointer đang over một interactive object (FarmPlot), không di chuyển player
@@ -204,8 +208,9 @@ export class FarmScene extends Phaser.Scene {
   }
 
   update() {
-    this.player?.update()
-  }
+  this.player?.update()
+  this.fishingSystem?.update()
+}
 
   private setMapOverview(overview: boolean) {
     console.log('[FarmScene] setMapOverview called with:', overview, 'current isOverview:', this.isOverview)
