@@ -12,7 +12,7 @@ import {
   FISH_CATCH_WEIGHTS,
 } from './fishingData'
 import { FishingMinigame } from './FishingMinigame'
-
+import { FishingPrompt } from './FishingPrompt'
 export class FishingSystem {
   private readonly scene: Phaser.Scene
   private readonly player: Player
@@ -21,9 +21,12 @@ export class FishingSystem {
   private currentFish?: FishDefinition
   private currentSpot?: FishingSpot
   private readonly resultUI: FishingResult
+  private readonly prompt: FishingPrompt
+
   constructor(scene: Phaser.Scene, player: Player) {
     this.scene = scene
     this.player = player
+    this.prompt = new FishingPrompt(scene)
     this.minigame = new FishingMinigame(
   scene,
   (result) => {
@@ -73,7 +76,7 @@ export class FishingSystem {
   this.minigame.update(
     this.scene.game.loop.delta,
   )
-
+  this.updateFishingPrompt()
   if (this.state !== 'idle') {
     return
   }
@@ -87,7 +90,54 @@ export class FishingSystem {
     )
   }
 }
+  private updateFishingPrompt() {
+  const spot = this.getNearbyFishingSpot()
 
+  if (!spot) {
+    this.prompt.hide()
+    return
+  }
+
+  const playerX = this.player.sprite.x
+  const playerY = this.player.sprite.y
+
+  const promptX = playerX
+  const promptY = playerY - 85
+
+  switch (this.state) {
+    case 'idle':
+      this.prompt.showIdle(
+        promptX,
+        promptY,
+      )
+      break
+
+    case 'casting':
+      this.prompt.showCasting(
+        promptX,
+        promptY,
+      )
+      break
+
+    case 'waiting':
+      this.prompt.showWaiting(
+        promptX,
+        promptY,
+      )
+      break
+
+    case 'bite':
+      this.prompt.showBite(
+        promptX,
+        promptY,
+      )
+      break
+
+    default:
+      this.prompt.hide()
+      break
+  }
+}
   private getNearbyFishingSpot(): FishingSpot | null {
     const playerX = this.player.sprite.x
     const playerY = this.player.sprite.y
