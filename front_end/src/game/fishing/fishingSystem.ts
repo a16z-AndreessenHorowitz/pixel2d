@@ -1,19 +1,65 @@
 import Phaser from 'phaser'
 import { Player } from '../objects/Player'
-import type { FishingSpot, FishingState } from '../fishing/fishingType'
-import { FISHING_SPOTS } from './fishingData'
+import type {
+  FishDefinition,
+  FishingSpot,
+  FishingState,
+} from '../fishing/fishingType'
+import { FishingResult } from './FishingResult'
+import {
+  FISHING_SPOTS,
+  FISH_DATA,
+  FISH_CATCH_WEIGHTS,
+} from './fishingData'
+import { FishingMinigame } from './FishingMinigame'
 
 export class FishingSystem {
   private readonly scene: Phaser.Scene
   private readonly player: Player
-
+  private readonly minigame: FishingMinigame
   private state: FishingState = 'idle'
+  private currentFish?: FishDefinition
   private currentSpot?: FishingSpot
-
+  private readonly resultUI: FishingResult
   constructor(scene: Phaser.Scene, player: Player) {
     this.scene = scene
     this.player = player
+    this.minigame = new FishingMinigame(
+  scene,
+  (result) => {
+    if (result === 'success') {
+      this.state = 'success'
 
+      console.log(
+        '[Fishing] Successfully caught a fish!',
+      )
+
+      if (this.currentFish) {
+        this.resultUI.showSuccess(
+          this.currentFish,
+        )
+      }
+    } else {
+      this.state = 'failed'
+
+      console.log(
+        '[Fishing] The fish escaped!',
+      )
+
+      this.resultUI.showFailed()
+    }
+  },
+)
+    this.resultUI = new FishingResult(
+  scene,
+  () => {
+    this.state = 'idle'
+    this.currentSpot = undefined
+    this.currentFish = undefined
+
+    console.log('[Fishing] Ready to fish again!')
+  },
+)
     const fishingKey = scene.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.E,
     )
@@ -24,17 +70,23 @@ export class FishingSystem {
   }
 
   update() {
-    if (this.state !== 'idle') {
-      return
-    }
+  this.minigame.update(
+    this.scene.game.loop.delta,
+  )
 
-    const spot = this.getNearbyFishingSpot()
-
-    if (spot) {
-      // Debug tạm thời
-      console.log('[Fishing] Player near:', spot.id)
-    }
+  if (this.state !== 'idle') {
+    return
   }
+
+  const spot = this.getNearbyFishingSpot()
+
+  if (spot) {
+    console.log(
+      '[Fishing] Player near:',
+      spot.id,
+    )
+  }
+}
 
   private getNearbyFishingSpot(): FishingSpot | null {
     const playerX = this.player.sprite.x
@@ -59,6 +111,30 @@ export class FishingSystem {
 
     return null
   }
+  private selectRandomFish(): FishDefinition {
+  const totalWeight = Object.values(
+    FISH_CATCH_WEIGHTS,
+  ).reduce(
+    (sum, weight) => sum + weight,
+    0,
+  )
+
+  let random =
+    Math.random() * totalWeight
+
+  for (const fish of FISH_DATA) {
+    const weight =
+      FISH_CATCH_WEIGHTS[fish.id]
+
+    random -= weight
+
+    if (random <= 0) {
+      return fish
+    }
+  }
+
+  return FISH_DATA[0]
+}
 
   startFishing() {
   // Đang idle → bắt đầu câu
@@ -103,12 +179,27 @@ export class FishingSystem {
     return
   }
 
-  // Cá đã cắn → nhấn E để kéo cá
   if (this.state === 'bite') {
-    this.state = 'reeling'
+  this.state = 'reeling'
 
-    console.log('[Fishing] Reeling in!')
-  }
+  console.log('[Fishing] Reeling in!')
+
+  this.currentFish =
+    this.selectRandomFish()
+
+  console.log(
+    '[Fishing] Fish selected:',
+    this.currentFish.name,
+    '| Rarity:',
+    this.currentFish.rarity,
+    '| Difficulty:',
+    this.currentFish.catchDifficulty,
+  )
+
+  this.minigame.start(
+    this.currentFish.catchDifficulty,
+  )
+}
 }
 
   getState(): FishingState {
