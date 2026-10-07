@@ -1,4 +1,5 @@
-export type InventoryItemId =
+import type { FishId } from '../fishing/fishingType'
+type BaseInventoryItemId =
   | 'watering-can'
   | 'sickle'
   | 'hoe'
@@ -7,6 +8,10 @@ export type InventoryItemId =
   | 'strawberry-seed'
   | 'pumpkin-seed'
   | 'watermelon-seed'
+
+export type InventoryItemId =
+  | BaseInventoryItemId
+  | FishId
 
 export type InventoryItem = {
   id: InventoryItemId
@@ -28,7 +33,7 @@ export const INVENTORY_SIZE = 20
  * mà không cần item phải tồn tại trong Inventory.
  */
 export const ITEM_DEFINITIONS: Record<
-  InventoryItemId,
+  BaseInventoryItemId,
   Omit<InventoryItem, 'quantity'>
 > = {
   'watering-can': {

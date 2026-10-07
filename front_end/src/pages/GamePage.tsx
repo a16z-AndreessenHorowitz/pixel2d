@@ -13,6 +13,9 @@ import {
   type InventoryItemId,
   type InventorySlot,
 } from '../game/inventory/inventory'
+import {
+  FISH_DATA,
+} from '../game/fishing/fishingData'
 import { quests } from '../mock-data/quests'
 import './GamePage.css'
 
@@ -33,13 +36,19 @@ export function GamePage() {
 })
 
   const [inventoryOpen, setInventoryOpen] = useState(false)
-
+  const [selectedFishId, setSelectedFishId] = useState<InventoryItemId | null>(null)
   /*
    * ---------------------------------------------------------
    * Inventory helpers
    * ---------------------------------------------------------
    */
-
+  const getFishDefinition = (
+  id: InventoryItemId,
+) => {
+  return FISH_DATA.find(
+    (fish) => fish.id === id,
+  )
+}
   const findInventoryItem = (id: ToolId): InventoryItem | null => {
     const item = inventory.find((entry) => entry?.id === id)
     return item ?? null
@@ -309,7 +318,31 @@ export function GamePage() {
       )
     }
   }, [])
+  
+  useEffect(() => {
+  const handleFishingCatch = (event: Event) => {
+    const customEvent = event as CustomEvent
+    const coins = customEvent.detail?.coins
 
+    if (typeof coins !== 'number') {
+      return
+    }
+
+    setCoins((prevCoins) => prevCoins + coins)
+  }
+
+  window.addEventListener(
+    'fishing-catch',
+    handleFishingCatch,
+  )
+
+  return () => {
+    window.removeEventListener(
+      'fishing-catch',
+      handleFishingCatch,
+    )
+  }
+}, [])
   /*
    * ---------------------------------------------------------
    * Reset inventory
