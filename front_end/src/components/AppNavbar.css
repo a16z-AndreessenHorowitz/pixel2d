@@ -1,8 +1,15 @@
 .app-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
   background: rgba(255, 252, 244, 0.94);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--line);
   box-shadow: 0 10px 24px rgba(45, 60, 38, 0.08);
   backdrop-filter: blur(14px);
+  padding: 6px 0;
+  height: 52px;
 }
 
 .brand-mark {
@@ -14,35 +21,74 @@
 }
 
 .brand-icon {
-  align-items: center;
-  background: #315d3a;
-  box-shadow:
-    inset 0 -4px 0 rgba(0, 0, 0, 0.18),
-    4px 4px 0 #d49b3a;
-  color: #fff7d6;
-  display: inline-flex;
-  font-size: 0.75rem;
-  height: 34px;
-  justify-content: center;
-  line-height: 1;
-  width: 34px;
+  font-size: 1.3rem;
+}
+
+.brand-text {
+  font-family: inherit;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
 }
 
 .nav-links {
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
 }
 
 .nav-links .nav-link {
   border-radius: 6px;
   color: var(--muted);
   font-weight: 700;
-  padding-inline: 14px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
 }
 
 .nav-links .nav-link.active,
 .nav-links .nav-link:hover {
   background: #eef5dd;
   color: var(--ink);
+}
+
+.nav-action-btn {
+  background: transparent;
+  border: 1px solid #c7d2b8;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.nav-action-btn.shop-btn {
+  background: #fff3e0;
+  border-color: #ffb74d;
+  color: #e65100;
+}
+
+.nav-action-btn.shop-btn:hover {
+  background: #ffe0b2;
+  transform: translateY(-1px);
+}
+
+.nav-action-btn.claim-btn {
+  background: #f3e5f5;
+  border-color: #ba68c8;
+  color: #6a1b9a;
+}
+
+.nav-action-btn.claim-btn:hover {
+  background: #e1bee7;
+  transform: translateY(-1px);
+}
+
+.navbar-web3-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .coin-balance {
@@ -57,6 +103,7 @@
   min-height: 38px;
   padding: 6px 10px;
   white-space: nowrap;
+  font-size: 0.9rem;
 }
 
 .coin-dot {
@@ -65,12 +112,129 @@
   border-radius: 50%;
   box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.16);
   display: inline-block;
-  height: 18px;
-  width: 18px;
+  height: 16px;
+  width: 16px;
+}
+
+.web3-connected-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pixel-token-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ede7f6;
+  border: 2px solid #7e57c2;
+  border-radius: 6px;
+  padding: 5px 10px;
+  color: #4527a0;
+  font-weight: 800;
+  font-size: 0.85rem;
+  box-shadow: inset 0 -2px 0 rgba(126, 87, 194, 0.3);
+}
+
+.token-amount {
+  font-size: 0.95rem;
+}
+
+.token-symbol {
+  font-size: 0.75rem;
+  color: #5e35b1;
+}
+
+.faucet-pill-btn {
+  background: #e1f5fe;
+  border: 2px solid #039be5;
+  color: #0277bd;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.faucet-pill-btn:hover:not(:disabled) {
+  background: #b3e5fc;
+}
+
+.faucet-pill-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wallet-address-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f2f6;
+  border: 2px solid #ced6e0;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2f3542;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wallet-address-pill:hover {
+  border-color: #ff4757;
+  color: #ff4757;
+  background: #ffeaa7;
+}
+
+.online-indicator {
+  width: 8px;
+  height: 8px;
+  background: #2ed573;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #2ed573;
+}
+
+.connect-metamask-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f39c12;
+  border: 2px solid #d35400;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #d35400;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.connect-metamask-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.connect-metamask-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.metamask-fox-icon {
+  width: 20px;
+  height: 20px;
 }
 
 @media (max-width: 991px) {
-  .coin-balance {
-    margin-top: 12px;
+  .nav-links {
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+  .navbar-web3-actions {
+    margin-top: 10px;
+    flex-wrap: wrap;
   }
 }

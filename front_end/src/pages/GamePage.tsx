@@ -3,6 +3,10 @@ import { GameCanvas } from '../components/GameCanvas'
 import { StatsPanel } from '../components/StatsPanel'
 import { QuestPanel } from '../components/QuestPanel'
 import { ShopModal, type ShopItem } from '../components/ShopModal'
+import { AppNavbar } from '../components/AppNavbar'
+import { ClaimTokenModal } from '../components/ClaimTokenModal'
+import { NftShopModal } from '../components/NftShopModal'
+import { useWeb3 } from '../web3/useWeb3'
 import { player } from '../mock-data/player'
 import {
   DEFAULT_INVENTORY,
@@ -27,24 +31,65 @@ export function GamePage() {
   const [coins, setCoins] = useState(player.coins)
   const [inventoryOpen, setInventoryOpen] = useState(false)
   const [shopOpen, setShopOpen] = useState(false)
+  const [claimModalOpen, setClaimModalOpen] = useState(false)
+  const [nftShopOpen, setNftShopOpen] = useState(false)
+  const [faucetLoading, setFaucetLoading] = useState(false)
   const [completedQuestIds, setCompletedQuestIds] = useState<number[]>([1])
 
+  const {
+    account,
+    ethBalance,
+    pixelBalance,
+    ownedNfts,
+    isConnecting,
+    connectWallet,
+    disconnect,
+    claimFaucet,
+    mintNft,
+    claimFarmingReward,
+    refreshBalances,
+  } = useWeb3()
+
   const [inventory, setInventory] = useState<InventorySlot[]>(() => {
-    return loadInventory().inventory
+    return loadInventory(account || undefined).inventory
   })
 
   const [toolbar, setToolbar] = useState<(InventoryItem | null)[]>(() => {
-    return loadInventory().toolbar
+    return loadInventory(account || undefined).toolbar
   })
 
   /*
    * ---------------------------------------------------------
-   * Save inventory whenever it changes
+   * Sync inventory and coins with wallet address & backend
    * ---------------------------------------------------------
    */
   useEffect(() => {
-    saveInventory(inventory, toolbar)
-  }, [inventory, toolbar])
+    const timer = setTimeout(() => {
+      const loaded = loadInventory(account || undefined)
+      setInventory(loaded.inventory)
+      setToolbar(loaded.toolbar)
+    }, 0)
+
+    // Optional: fetch game state from backend if running
+    if (account) {
+      fetch(`http://localhost:4000/api/game/state?address=${account}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.state) {
+            setCoins(data.state.coins)
+          }
+        })
+        .catch(() => {
+          // Backend optional fallback
+        })
+    }
+
+    return () => clearTimeout(timer)
+  }, [account])
+
+  useEffect(() => {
+    saveInventory(inventory, toolbar, account || undefined)
+  }, [inventory, toolbar, account])
 
   /*
    * ---------------------------------------------------------
@@ -234,6 +279,36 @@ export function GamePage() {
 
   /*
    * ---------------------------------------------------------
+   * Web3 Handlers
+   * ---------------------------------------------------------
+   */
+  const handleClaimFaucet = async () => {
+    if (!account) {
+      await connectWallet()
+      return
+    }
+    setFaucetLoading(true)
+    try {
+      await claimFaucet()
+      alert('🎉 Đã nhận 100 $PIXEL thử nghiệm từ Faucet Contract!')
+    } catch (err: any) {
+      alert('Lỗi Faucet: ' + (err?.reason || err?.message || 'Không thể nhận faucet'))
+    } finally {
+      setFaucetLoading(false)
+    }
+  }
+
+  const handleClaimSuccess = (claimedCoins: number, _txHash: string) => {
+    setCoins((prev) => Math.max(0, prev - claimedCoins))
+    refreshBalances()
+  }
+
+  const handleMintNftSuccess = (_itemType: number, _txHash: string) => {
+    refreshBalances()
+  }
+
+  /*
+   * ---------------------------------------------------------
    * Open / close inventory with keyboard I
    * ---------------------------------------------------------
    */
@@ -378,6 +453,21 @@ export function GamePage() {
 
   return (
     <section className="game-page" aria-label="Pixel Farm game">
+      {/* Top Web3 & Game Navigation Bar */}
+      <AppNavbar
+        coins={coins}
+        account={account}
+        pixelBalance={pixelBalance}
+        ethBalance={ethBalance}
+        isConnecting={isConnecting}
+        faucetLoading={faucetLoading}
+        onConnect={connectWallet}
+        onDisconnect={disconnect}
+        onOpenClaim={() => setClaimModalOpen(true)}
+        onOpenNftShop={() => setNftShopOpen(true)}
+        onClaimFaucet={handleClaimFaucet}
+      />
+
       <GameCanvas />
 
       {/* Left panel */}
@@ -401,6 +491,28 @@ export function GamePage() {
         onClose={() => setShopOpen(false)}
         coins={coins}
         onBuyItem={handleBuyShopItem}
+      />
+
+      {/* Web3 Token Claim Modal (Sync Coins to $PIXEL) */}
+      <ClaimTokenModal
+        isOpen={claimModalOpen}
+        onClose={() => setClaimModalOpen(false)}
+        inGameCoins={coins}
+        account={account}
+        pixelBalance={pixelBalance}
+        claimFarmingReward={claimFarmingReward}
+        onClaimSuccess={handleClaimSuccess}
+      />
+
+      {/* Web3 NFT Shop Modal (1-Click Mint) */}
+      <NftShopModal
+        isOpen={nftShopOpen}
+        onClose={() => setNftShopOpen(false)}
+        account={account}
+        pixelBalance={pixelBalance}
+        ownedNfts={ownedNfts}
+        mintNft={mintNft}
+        onMintSuccess={handleMintNftSuccess}
       />
 
       {/* =====================================================
@@ -504,6 +616,28 @@ export function GamePage() {
           onClick={() => setShopOpen((prev) => !prev)}
         >
           🛒
+        </button>
+
+        {/* NFT Shop Button (1-Click Mint) */}
+        <button
+          type="button"
+          className={`toolbar-menu${nftShopOpen ? ' toolbar-menu-active' : ''}`}
+          aria-label="Cửa hàng NFT Buff"
+          title="Cửa hàng NFT (1-Click Mint)"
+          onClick={() => setNftShopOpen(true)}
+        >
+          ✨
+        </button>
+
+        {/* Sync Coins to $PIXEL Claim Button */}
+        <button
+          type="button"
+          className={`toolbar-menu${claimModalOpen ? ' toolbar-menu-active' : ''}`}
+          aria-label="Rút $PIXEL on-chain"
+          title="Đổi Coin lấy $PIXEL on-chain"
+          onClick={() => setClaimModalOpen(true)}
+        >
+          🪙
         </button>
 
         {toolbar.map((tool, toolbarIndex) => {

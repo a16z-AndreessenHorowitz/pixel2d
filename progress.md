@@ -14,8 +14,8 @@
 | **Giai đoạn 2** | Hoàn thiện Gameplay & Tích hợp Câu Cá từ `origin/Fishing` | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 3** | Xây dựng Backend API (`backend/`), Shop Hạt Giống & Web3 Signer | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 4** | Xây dựng & Unit Test Smart Contracts (`contracts/`) | **HOÀN THÀNH** | **100%** |
-| **Giai đoạn 5** | Tích hợp Frontend: MetaMask, Shop, Claim Token & Buff Phaser | Sẵn sàng triển khai | 0% |
-| **Giai đoạn 6** | Deploy Testnet (Sepolia/Amoy) & Kịch bản Demo Đồ Án | Chờ thực hiện | 0% |
+| **Giai đoạn 5** | Tích hợp Frontend: MetaMask, Shop, Claim Token & Buff Phaser | **HOÀN THÀNH** | **100%** |
+| **Giai đoạn 6** | Deploy Testnet (Sepolia/Amoy) & Kịch bản Demo Đồ Án | Sẵn sàng triển khai | 0% |
 
 ---
 
@@ -84,3 +84,14 @@
   - Hàm Batch View `getOwnedItems(user)`: Trả về mảng `bool[4]` trạng thái sở hữu phục vụ Cầu nối Buff React -> Phaser.
 - [x] **TSK-4.4**: Viết bộ Unit Test tự động (`contracts/test/PixelFarm.test.ts`): Vượt qua **15/15 bài kiểm tra** (100% passed) trong 933ms.
 - [x] **TSK-4.5**: Viết Script Deploy (`contracts/scripts/deploy.ts`): Tự động triển khai hợp đồng, cấp quyền `BURNER_ROLE`, và tự động xuất Contract Addresses cùng TypeScript ABI ra `front_end/src/web3/abis/contracts.ts`, `PixelFarmToken.json`, `FarmItemNFT.json`.
+
+---
+
+## 6. NHẬT KÝ THỰC HIỆN GIAI ĐOẠN 5 (ĐÃ HOÀN THÀNH)
+
+- [x] **TSK-5.1**: Xây dựng Hook `useWeb3.ts` (Ethers v6): quản lý kết nối MetaMask, chuyển mạng Hardhat/Amoy, theo dõi số dư ETH, số dư `$PIXEL`, và batch view trạng thái NFT `getOwnedItems`.
+- [x] **TSK-5.2**: Cập nhật thanh điều hướng `AppNavbar.tsx`: Nút "Kết Nối Ví MetaMask", hiển thị địa chỉ ví rút gọn (`0x12...ab`), pill số dư `$PIXEL` on-chain, nút Faucet 100 `$PIXEL`, cùng các nút tắt mở NFT Shop & Quy đổi Token.
+- [x] **TSK-5.3**: Xây dựng Modal Quy Đổi Token `ClaimTokenModal.tsx` ("Sync Coins to $PIXEL"): cho phép nhập/chọn nhanh số lượng Coin, gọi Backend lấy chữ ký số ECDSA kèm Cap (100) & Cooldown (300s), gọi smart contract `claimFarmingReward(...)` trên ví MetaMask, và tự động khóa coin chống double-spending.
+- [x] **TSK-5.4**: Xây dựng Modal Web3 NFT Shop `NftShopModal.tsx`: hiển thị 4 loại NFT nông cụ, hỗ trợ cơ chế **1-Click Mint** (`mintWithToken`) tự động đốt token và mint NFT chỉ trong 1 giao dịch duy nhất không cần lệnh `approve()`.
+- [x] **TSK-5.5**: Hoàn thiện Cầu nối NFT Buff Bridge (React -> Phaser): khi ví kết nối hoặc sau khi mint thành công, hook phát Custom Event `web3-buff-updated` kích hoạt giảm ngay 20% thời gian lớn của cây trong `FarmPlot.ts` khi sở hữu "Bình tưới vàng".
+- [x] **TSK-5.6**: Kiểm thử chất lượng mã nguồn: `oxlint` 0 lỗi 0 cảnh báo, `tsc -b && vite build` hoàn thành với exit code 0 trong 1.89s.
