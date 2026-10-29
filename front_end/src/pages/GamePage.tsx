@@ -36,22 +36,6 @@ export function GamePage() {
 
   /*
    * ---------------------------------------------------------
-   * Inventory helpers
-   * ---------------------------------------------------------
-   */
-
-  const findInventoryItem = (id: ToolId): InventoryItem | null => {
-    const item = inventory.find((entry) => entry?.id === id)
-    return item ?? null
-  }
-
-  const getToolbarItem = (id: ToolId | null): InventoryItem | null => {
-    if (!id) return null
-    return findInventoryItem(id)
-  }
-
-  /*
-   * ---------------------------------------------------------
    * Save inventory whenever it changes
    * ---------------------------------------------------------
    */
@@ -594,6 +578,50 @@ export function GamePage() {
           aria-label="Bản đồ"
         >
           ↻
+        </button>
+      </div>
+
+      {/* Virtual D-pad controls */}
+      <div className="game-controls" aria-label="Phím điều hướng ảo">
+        <button
+          type="button"
+          className="control-up"
+          aria-label="Đi lên"
+          onPointerDown={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: 'up' } }))}
+          onPointerUp={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
+          onPointerLeave={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          className="control-left"
+          aria-label="Sang trái"
+          onPointerDown={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: 'left' } }))}
+          onPointerUp={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
+          onPointerLeave={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
+        >
+          ◀
+        </button>
+        <button
+          type="button"
+          className="control-down"
+          aria-label="Đi xuống"
+          onPointerDown={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: 'down' } }))}
+          onPointerUp={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
+          onPointerLeave={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
+        >
+          ▼
+        </button>
+        <button
+          type="button"
+          className="control-right"
+          aria-label="Sang phải"
+          onPointerDown={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: 'right' } }))}
+          onPointerUp={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
+          onPointerLeave={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
+        >
+          ▶
         </button>
       </div>
     </section>

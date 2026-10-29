@@ -9,7 +9,8 @@ function App() {
         <main className="app-main">
           <Routes>
             <Route path="/" element={<GamePage />} />
-            <Route path="*" element={<Navigate to="/game" replace />} />
+            <Route path="/game" element={<GamePage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>

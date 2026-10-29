@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { FarmPlot } from '../objects/FarmPlot'
 import { Player } from '../objects/Player'
 import { crops } from '../data/crops'
-import type { CropId } from '../data/crops'
+
 
 // Total map dimensions
 const mapWidth = 2400

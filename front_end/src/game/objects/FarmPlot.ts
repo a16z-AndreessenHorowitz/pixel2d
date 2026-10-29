@@ -35,8 +35,8 @@ export class FarmPlot extends Phaser.GameObjects.Container {
   private cropSprite: Phaser.GameObjects.Image
   private growTimer: Phaser.Time.TimerEvent | null = null
 
-  /** Hiệu ứng ripple xanh khi tưới nước */
-  private waterRipple: Phaser.GameObjects.Arc | null = null
+
+
 
   // Progress Bar
   private progressBg: Phaser.GameObjects.Rectangle
