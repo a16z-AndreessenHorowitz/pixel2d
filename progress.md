@@ -11,8 +11,8 @@
 | :--- | :--- | :---: | :---: |
 | **Giai đoạn 0** | Khảo sát hiện trạng, Cập nhật tài liệu kiến trúc 3 tầng v3.0 | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 1** | Tạo nhánh Git `feat/blockchain-gamefi` & Fix lỗi nền tảng Frontend | **HOÀN THÀNH** | **100%** |
-| **Giai đoạn 2** | Hoàn thiện Gameplay & Tích hợp Câu Cá từ `origin/Fishing` | **Sẵn sàng triển khai** | 0% |
-| **Giai đoạn 3** | Xây dựng Backend API (`backend/`), Shop Hạt Giống & Web3 Signer | Chờ thực hiện | 0% |
+| **Giai đoạn 2** | Hoàn thiện Gameplay & Tích hợp Câu Cá từ `origin/Fishing` | **HOÀN THÀNH** | **100%** |
+| **Giai đoạn 3** | Xây dựng Backend API (`backend/`), Shop Hạt Giống & Web3 Signer | Sẵn sàng triển khai | 0% |
 | **Giai đoạn 4** | Xây dựng & Unit Test Smart Contracts (`contracts/`) | Chờ thực hiện | 0% |
 | **Giai đoạn 5** | Tích hợp Frontend: MetaMask, Shop, Claim Token & Buff Phaser | Chờ thực hiện | 0% |
 | **Giai đoạn 6** | Deploy Testnet (Sepolia/Amoy) & Kịch bản Demo Đồ Án | Chờ thực hiện | 0% |
@@ -27,3 +27,17 @@
 - [x] **TSK-1.3**: Kích hoạt hiển thị cụm nút D-pad ảo cho mobile trong `GamePage.tsx` qua event `farm-control`.
 - [x] **TSK-1.4**: Dọn dẹp mã nguồn thừa không dùng (`PlotTile.ts`, `Farmer.ts`).
 - [x] **TSK-1.5**: Kiểm chứng lệnh `pnpm run lint` (0 errors, 0 warnings) và `pnpm run build` kết thúc thành công với exit code 0.
+
+---
+
+## 3. NHẬT KÝ THỰC HIỆN GIAI ĐOẠN 2 (ĐÃ HOÀN THÀNH)
+
+- [x] **TSK-2.1**: Tích hợp module câu cá từ `origin/Fishing` vào `front_end/src/game/fishing/` và assets cá vào `front_end/public/assets/fishing/`.
+- [x] **TSK-2.2**: Cập nhật `FarmScene.ts` với các điểm câu cá quanh hồ nước (`FISHING_SPOTS`), animation câu cá và lắng nghe sự kiện `fishing-catch`.
+- [x] **TSK-2.3**: Nâng cấp `FarmPlot.ts`: hỗ trợ gieo hạt kiểm tra số lượng tồn kho (event cancelable `farm-plant-crop`), hỗ trợ công cụ Gold (`gold-watering-can`, `gold-sickle`), hệ số giảm thời gian lớn `growDurationMultiplier`.
+- [x] **TSK-2.4**: Tích hợp NFT Buff Bridge trong `FarmScene.ts`: lắng nghe custom event `web3-buff-updated` để giảm 20% thời gian lớn khi sở hữu Bình tưới vàng NFT.
+- [x] **TSK-2.5**: Tái cấu trúc kho đồ `inventory.ts`: bổ sung định nghĩa đầy đủ Tools thường + Gold Tools, 5 loại hạt giống, 5 loại nông sản thu hoạch, 5 loại cá. Lưu trữ phân tách theo địa chỉ ví: `pixel-farm-inventory-v3-${account}`.
+- [x] **TSK-2.6**: Xây dựng Modal Cửa Hàng Hạt Giống (`ShopModal.tsx`, `ShopModal.css`): hỗ trợ mua gói hạt giống bằng In-Game Coin, tự gộp stack vào Toolbar hoặc Kho đồ.
+- [x] **TSK-2.7**: Nâng cấp Modal Nhiệm Vụ Tương Tác (`QuestPanel.tsx`, `QuestPanel.css`): bấm biển gỗ/bảng ghim để mở bảng nhiệm vụ, nhận thưởng Coin trực tiếp.
+- [x] **TSK-2.8**: Cập nhật `GamePage.tsx`: bổ sung hàm gộp stack `addItem`, tiêu thụ hạt `consumeSeed`, nút bấm Shop 🛒, xử lý nhận thưởng quest và các sự kiện Phaser -> React.
+- [x] **TSK-2.9**: Kiểm thử lint (`oxlint` 0 warnings, 0 errors) và build production (`tsc -b && vite build` 0 errors, 940ms). Đã commit lên nhánh `feat/blockchain-gamefi`.
