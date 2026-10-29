@@ -12,8 +12,8 @@
 | **Giai đoạn 0** | Khảo sát hiện trạng, Cập nhật tài liệu kiến trúc 3 tầng v3.0 | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 1** | Tạo nhánh Git `feat/blockchain-gamefi` & Fix lỗi nền tảng Frontend | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 2** | Hoàn thiện Gameplay & Tích hợp Câu Cá từ `origin/Fishing` | **HOÀN THÀNH** | **100%** |
-| **Giai đoạn 3** | Xây dựng Backend API (`backend/`), Shop Hạt Giống & Web3 Signer | Sẵn sàng triển khai | 0% |
-| **Giai đoạn 4** | Xây dựng & Unit Test Smart Contracts (`contracts/`) | Chờ thực hiện | 0% |
+| **Giai đoạn 3** | Xây dựng Backend API (`backend/`), Shop Hạt Giống & Web3 Signer | **HOÀN THÀNH** | **100%** |
+| **Giai đoạn 4** | Xây dựng & Unit Test Smart Contracts (`contracts/`) | Sẵn sàng triển khai | 0% |
 | **Giai đoạn 5** | Tích hợp Frontend: MetaMask, Shop, Claim Token & Buff Phaser | Chờ thực hiện | 0% |
 | **Giai đoạn 6** | Deploy Testnet (Sepolia/Amoy) & Kịch bản Demo Đồ Án | Chờ thực hiện | 0% |
 
@@ -41,3 +41,28 @@
 - [x] **TSK-2.7**: Nâng cấp Modal Nhiệm Vụ Tương Tác (`QuestPanel.tsx`, `QuestPanel.css`): bấm biển gỗ/bảng ghim để mở bảng nhiệm vụ, nhận thưởng Coin trực tiếp.
 - [x] **TSK-2.8**: Cập nhật `GamePage.tsx`: bổ sung hàm gộp stack `addItem`, tiêu thụ hạt `consumeSeed`, nút bấm Shop 🛒, xử lý nhận thưởng quest và các sự kiện Phaser -> React.
 - [x] **TSK-2.9**: Kiểm thử lint (`oxlint` 0 warnings, 0 errors) và build production (`tsc -b && vite build` 0 errors, 940ms). Đã commit lên nhánh `feat/blockchain-gamefi`.
+
+---
+
+## 4. NHẬT KÝ THỰC HIỆN GIAI ĐOẠN 3 (ĐÃ HOÀN THÀNH)
+
+- [x] **TSK-3.1**: Khởi tạo thư mục `backend/` độc lập ở root với Node.js, Express 5, TypeScript, SQLite (`better-sqlite3`), Ethers v6, JWT.
+- [x] **TSK-3.2**: Xây dựng Database Schema & Auto-seed 5 loại hạt giống nông trại trong `backend/src/db/database.ts` với chế độ WAL mode.
+- [x] **TSK-3.3**: Xây dựng Hệ thống Auth (`backend/src/routes/auth.ts`):
+  - `GET /api/auth/nonce`: Cung cấp Nonce chống tấn công Replay Attack.
+  - `POST /api/auth/login-wallet`: Xác thực chữ ký ví MetaMask (SIWE - Sign-In with Ethereum) qua `ethers.verifyMessage`, cấp phát JWT Token 7 ngày.
+  - `POST /api/auth/register` & `POST /api/auth/login`: Hỗ trợ tài khoản truyền thống song song.
+- [x] **TSK-3.4**: Xây dựng API Game State (`backend/src/routes/game.ts`):
+  - `GET /api/game/state`: Truy xuất số dư Coin, Toolbar, Kho đồ và Nhiệm vụ theo địa chỉ ví.
+  - `POST /api/game/save`: Lưu và đồng bộ trạng thái game vào SQLite.
+- [x] **TSK-3.5**: Xây dựng Cửa hàng Hạt giống Server-side (`backend/src/routes/shop.ts`):
+  - `GET /api/shop/items`: Trả về danh sách hạt giống và vật phẩm.
+  - `POST /api/shop/buy`: Kiểm tra số dư Coin, trừ Coin an toàn, tự động xếp gộp stack vào Toolbar hoặc Kho đồ trong Database.
+- [x] **TSK-3.6**: Xây dựng ECDSA Web3 Signer (`backend/src/routes/web3.ts`):
+  - `GET /api/web3/claim-status`: Kiểm tra hạn mức Cap (100 Coins) và thời gian hồi Cooldown (300 giây).
+  - `POST /api/web3/create-claim-signature`: Kiểm tra số dư Coin, kiểm tra Cap & Cooldown, trừ Coin trong DB và dùng Server Private Key ký ECDSA hash `(player, amount, nonce, deadline)` theo chuẩn `keccak256` OpenZeppelin.
+  - `POST /api/web3/confirm-claim`: Cập nhật trạng thái giao dịch on-chain khi có txHash.
+- [x] **TSK-3.7**: Xây dựng Lịch sử Giao dịch (`backend/src/routes/transactions.ts`):
+  - `GET /api/transactions`: Truy xuất audit log theo địa chỉ ví.
+  - `POST /api/transactions/log`: Lưu lịch sử đổi token, mua hạt giống, mint NFT.
+- [x] **TSK-3.8**: Viết bộ kịch bản tự động kiểm thử (`backend/test_api.ts`) vượt qua **8/8 bài kiểm tra** với Exit Code 0. Build production `tsc` thành công.
