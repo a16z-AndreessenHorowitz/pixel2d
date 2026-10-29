@@ -13,8 +13,8 @@
 | **Giai đoạn 1** | Tạo nhánh Git `feat/blockchain-gamefi` & Fix lỗi nền tảng Frontend | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 2** | Hoàn thiện Gameplay & Tích hợp Câu Cá từ `origin/Fishing` | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 3** | Xây dựng Backend API (`backend/`), Shop Hạt Giống & Web3 Signer | **HOÀN THÀNH** | **100%** |
-| **Giai đoạn 4** | Xây dựng & Unit Test Smart Contracts (`contracts/`) | Sẵn sàng triển khai | 0% |
-| **Giai đoạn 5** | Tích hợp Frontend: MetaMask, Shop, Claim Token & Buff Phaser | Chờ thực hiện | 0% |
+| **Giai đoạn 4** | Xây dựng & Unit Test Smart Contracts (`contracts/`) | **HOÀN THÀNH** | **100%** |
+| **Giai đoạn 5** | Tích hợp Frontend: MetaMask, Shop, Claim Token & Buff Phaser | Sẵn sàng triển khai | 0% |
 | **Giai đoạn 6** | Deploy Testnet (Sepolia/Amoy) & Kịch bản Demo Đồ Án | Chờ thực hiện | 0% |
 
 ---
@@ -66,3 +66,21 @@
   - `GET /api/transactions`: Truy xuất audit log theo địa chỉ ví.
   - `POST /api/transactions/log`: Lưu lịch sử đổi token, mua hạt giống, mint NFT.
 - [x] **TSK-3.8**: Viết bộ kịch bản tự động kiểm thử (`backend/test_api.ts`) vượt qua **8/8 bài kiểm tra** với Exit Code 0. Build production `tsc` thành công.
+
+---
+
+## 5. NHẬT KÝ THỰC HIỆN GIAI ĐOẠN 4 (ĐÃ HOÀN THÀNH)
+
+- [x] **TSK-4.1**: Khởi tạo môi trường Hardhat độc lập tại thư mục `contracts/` với OpenZeppelin Contracts v5.2, Solidity 0.8.24 (Cancun EVM), TypeScript và Hardhat Toolbox.
+- [x] **TSK-4.2**: Viết hợp đồng `PixelFarmToken.sol` ($PIXEL):
+  - Chuẩn ERC-20, AccessControl, ReentrancyGuard, ECDSA/MessageHashUtils.
+  - Hàm `claimFarmingReward(...)`: Xác thực chữ ký số Backend, kiểm tra chống Replay Attack (`usedNonces`), Hạn mức Cap (100 token/lần), và Cooldown (300s).
+  - Hàm Daily Faucet (`claimFaucet()`): Nhận 100 $PIXEL thử nghiệm.
+  - Phân quyền `BURNER_ROLE` và hàm `burnFromPlayer(...)`: Cho phép đốt token trực tiếp khi mint NFT mà không cần người chơi phải ký lệnh `approve()`.
+- [x] **TSK-4.3**: Viết hợp đồng `FarmItemNFT.sol` (PFARM):
+  - Chuẩn ERC-721, Ownable, ReentrancyGuard.
+  - Quản lý 4 loại NFT nông cụ: Gold Sickle (50 $PIXEL), Gold Watering Can (100 $PIXEL), Gold Hoe (75 $PIXEL), Golden Fish (150 $PIXEL).
+  - Cơ chế **1-Click Mint** (`mintWithToken`): Đốt token và mint NFT chỉ trong 1 giao dịch duy nhất.
+  - Hàm Batch View `getOwnedItems(user)`: Trả về mảng `bool[4]` trạng thái sở hữu phục vụ Cầu nối Buff React -> Phaser.
+- [x] **TSK-4.4**: Viết bộ Unit Test tự động (`contracts/test/PixelFarm.test.ts`): Vượt qua **15/15 bài kiểm tra** (100% passed) trong 933ms.
+- [x] **TSK-4.5**: Viết Script Deploy (`contracts/scripts/deploy.ts`): Tự động triển khai hợp đồng, cấp quyền `BURNER_ROLE`, và tự động xuất Contract Addresses cùng TypeScript ABI ra `front_end/src/web3/abis/contracts.ts`, `PixelFarmToken.json`, `FarmItemNFT.json`.
