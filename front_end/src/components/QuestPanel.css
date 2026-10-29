@@ -77,6 +77,8 @@
   right: 10px;
   width: 96px;
   pointer-events: all;
+  cursor: pointer;
+  transition: transform 0.15s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -250,4 +252,172 @@
   font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+.quest-note:hover {
+  transform: scale(1.06) rotate(-2deg);
+}
+
+/* ═══════════════════════════════════════════
+   Quest Modal Popup
+   ═══════════════════════════════════════════ */
+
+.quest-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 16, 0.78);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: all;
+}
+
+.quest-modal {
+  background: #151b2d;
+  border: 3px solid #374a75;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: #f0f6fc;
+  max-width: 520px;
+  width: 92%;
+  padding: 20px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.quest-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #233152;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.quest-modal__header h2 {
+  font-family: monospace;
+  font-size: 1.25rem;
+  color: #ffd700;
+  margin: 0;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.quest-modal__header p {
+  font-size: 0.82rem;
+  color: #8fa5cf;
+  margin: 4px 0 0;
+}
+
+.quest-modal__close {
+  background: transparent;
+  border: 0;
+  color: #8fa5cf;
+  font-size: 1.7rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.quest-modal__close:hover {
+  color: #fff;
+}
+
+.quest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quest-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #1c253d;
+  border: 2px solid #2d3e66;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.quest-card--done {
+  opacity: 0.75;
+  border-color: #2b5c40;
+  background: #14271f;
+}
+
+.quest-card__badge {
+  width: 32px;
+  height: 32px;
+  background: #28375a;
+  border: 2px solid #435c94;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-weight: 700;
+  color: #ffd700;
+}
+
+.quest-card--done .quest-card__badge {
+  background: #1f4a30;
+  border-color: #3b8a5a;
+  color: #6fe39c;
+}
+
+.quest-card__info {
+  flex: 1;
+}
+
+.quest-card__info h4 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0;
+  color: #e6eef8;
+}
+
+.quest-card__info p {
+  font-size: 0.78rem;
+  color: #8ba2c9;
+  margin: 3px 0 0;
+}
+
+.quest-card__action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.quest-card__reward {
+  font-family: monospace;
+  font-weight: 700;
+  color: #ffd700;
+  font-size: 0.88rem;
+}
+
+.quest-claim-btn {
+  background: #2e6bc4;
+  border: 2px solid #5691e8;
+  color: #fff;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.quest-claim-btn:hover {
+  background: #3f7fe0;
+  transform: scale(1.04);
+}
+
+.quest-status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6fe39c;
+  background: rgba(30, 80, 50, 0.6);
+  padding: 3px 8px;
+  border-radius: 4px;
 }

@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { FarmPlot } from '../objects/FarmPlot'
 import { Player } from '../objects/Player'
 import { crops } from '../data/crops'
+import { FishingSystem } from '../fishing/fishingSystem'
 
 
 // Total map dimensions
@@ -30,6 +31,7 @@ interface RoamingAnimal {
 
 export class FarmScene extends Phaser.Scene {
   private player?: Player
+  private fishingSystem?: FishingSystem
   private chickens: RoamingAnimal[] = []
   private cows: RoamingAnimal[] = []
   private isOverview = false
@@ -111,6 +113,32 @@ export class FarmScene extends Phaser.Scene {
       frameHeight: 26,
     })
 
+    // ── Fishing Fish Sprites ──
+    this.load.spritesheet('golden-fish', '/assets/fishing/golden-fish.png', {
+      frameWidth: 362,
+      frameHeight: 362,
+    })
+    this.load.spritesheet('fish-koi', '/assets/fishing/fish1_processed/koi.png', {
+      frameWidth: 144,
+      frameHeight: 88,
+    })
+    this.load.spritesheet('fish-tilapia', '/assets/fishing/fish1_processed/tilapia.png', {
+      frameWidth: 136,
+      frameHeight: 80,
+    })
+    this.load.spritesheet('fish-catfish', '/assets/fishing/fish1_processed/catfish.png', {
+      frameWidth: 128,
+      frameHeight: 80,
+    })
+    this.load.spritesheet('fish-tuna', '/assets/fishing/fish1_processed/tuna.png', {
+      frameWidth: 140,
+      frameHeight: 88,
+    })
+    this.load.spritesheet('fishing-rod', '/assets/fishing/fishing-rod.png', {
+      frameWidth: 64,
+      frameHeight: 64,
+    })
+
     // ── Grass Sheet Texture & Nature Decals ──
     this.load.image('grass-texture', '/assets/grass-pixel-warm512.png')
     this.load.image('flower-white', '/assets/flower-white.png')
@@ -127,6 +155,7 @@ export class FarmScene extends Phaser.Scene {
     this.cameras.main.setZoom(this.defaultZoom)
 
     this.createAnimalAnimations()
+    this.createFishingAnimations()
 
     // 1. Draw starry cosmos & floating island terrain base
     this.drawTerrainBase()
@@ -143,6 +172,26 @@ export class FarmScene extends Phaser.Scene {
     // 5. Initialize Player at central crossway
     this.player = new Player(this, dividerCenterX, 680)
     this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12)
+    this.fishingSystem = new FishingSystem(this, this.player)
+
+    // Lắng nghe buff từ Web3 (NFT Buff Bridge)
+    const onBuffUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        hasGoldWateringCan?: boolean
+        hasGoldSickle?: boolean
+        hasGoldHoe?: boolean
+        hasGoldenFish?: boolean
+      }>
+      if (customEvent.detail?.hasGoldWateringCan) {
+        this.registry.set('growDurationMultiplier', 0.8)
+      } else {
+        this.registry.set('growDurationMultiplier', 1.0)
+      }
+    }
+    window.addEventListener('web3-buff-updated', onBuffUpdated)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener('web3-buff-updated', onBuffUpdated)
+    })
 
     // Player touch/mouse movement (chỉ di chuyển khi không click vào farm plot)
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -205,6 +254,7 @@ export class FarmScene extends Phaser.Scene {
 
   update() {
     this.player?.update()
+    this.fishingSystem?.update()
   }
 
   private setMapOverview(overview: boolean) {
@@ -272,6 +322,68 @@ export class FarmScene extends Phaser.Scene {
   /**
    * Base Terrain & Central Dividing Road
    */
+  private createFishingAnimations() {
+    if (!this.anims.exists('golden-fish-swim')) {
+      this.anims.create({
+        key: 'golden-fish-swim',
+        frames: this.anims.generateFrameNumbers('golden-fish', { start: 0, end: 5 }),
+        frameRate: 8,
+        repeat: -1,
+      })
+
+      this.anims.create({
+        key: 'golden-fish-hooked',
+        frames: this.anims.generateFrameNumbers('golden-fish', { start: 6, end: 11 }),
+        frameRate: 10,
+        repeat: -1,
+      })
+
+      this.createFishAnimations('fish-koi', 'koi')
+      this.createFishAnimations('fish-tilapia', 'tilapia')
+      this.createFishAnimations('fish-catfish', 'catfish')
+      this.createFishAnimations('fish-tuna', 'tuna')
+
+      this.anims.create({
+        key: 'rod-idle',
+        frames: this.anims.generateFrameNumbers('fishing-rod', { frames: [0, 1] }),
+        frameRate: 2,
+        repeat: -1,
+      })
+
+      this.anims.create({
+        key: 'rod-cast',
+        frames: this.anims.generateFrameNumbers('fishing-rod', { frames: [6, 7, 8, 9] }),
+        frameRate: 6,
+        repeat: 0,
+      })
+
+      this.anims.create({
+        key: 'rod-reel',
+        frames: this.anims.generateFrameNumbers('fishing-rod', { frames: [12, 13, 14, 15, 16, 17] }),
+        frameRate: 8,
+        repeat: -1,
+      })
+    }
+  }
+
+  private createFishAnimations(textureKey: string, animationName: string) {
+    if (!this.anims.exists(`${animationName}-swim`)) {
+      this.anims.create({
+        key: `${animationName}-swim`,
+        frames: this.anims.generateFrameNumbers(textureKey, { start: 0, end: 6 }),
+        frameRate: 8,
+        repeat: -1,
+      })
+
+      this.anims.create({
+        key: `${animationName}-hooked`,
+        frames: this.anims.generateFrameNumbers(textureKey, { start: 8, end: 15 }),
+        frameRate: 10,
+        repeat: -1,
+      })
+    }
+  }
+
   private drawTerrainBase() {
     const bgGfx = this.add.graphics().setDepth(-20)
 

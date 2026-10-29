@@ -142,13 +142,24 @@ export class FarmPlot extends Phaser.GameObjects.Container {
         // Chỉ cho phép dùng seed tool
         if (tool.endsWith('-seed')) {
           const cropId = tool.replace('-seed', '') as CropId
-          this.plant(cropId)
+          const plantEvent = new CustomEvent('farm-plant-crop', {
+            detail: { seedId: tool, cropId },
+            cancelable: true,
+          })
+          window.dispatchEvent(plantEvent)
+
+          if (!plantEvent.defaultPrevented) {
+            this.plant(cropId)
+          } else {
+            this.shake()
+            this.showFloatingText('Hết hạt giống!', '#ff6b6b')
+          }
         } else {
           this.shake()
         }
         break
       case 'planted':
-        if (tool === 'watering-can') {
+        if (tool === 'watering-can' || tool === 'gold-watering-can') {
           this.water()
         } else {
           this.shake()
@@ -159,7 +170,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
         this.shake()
         break
       case 'mature':
-        if (tool === 'sickle') {
+        if (tool === 'sickle' || tool === 'gold-sickle') {
           this.harvest()
         } else {
           this.animateBounce()
@@ -179,6 +190,11 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     if (!this.cropId) return
     const crop = getCropById(this.cropId)
 
+
+
+    const multiplier = (this.scene.registry.get('growDurationMultiplier') as number) || 1.0
+    const growDuration = Math.max(1000, Math.round(crop.growDurationMs * multiplier))
+
     // Nếu đã có timer cũ thì huỷ
     this.growTimer?.remove()
     this.progressTween?.remove()
@@ -191,11 +207,11 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     this.progressTween = this.scene.tweens.add({
       targets: this.progressBar,
       scaleX: 1,
-      duration: crop.growDurationMs,
+      duration: growDuration,
       ease: 'Linear'
     })
 
-    this.growTimer = this.scene.time.delayedCall(crop.growDurationMs, () => {
+    this.growTimer = this.scene.time.delayedCall(growDuration, () => {
       if (this.status === 'watered') {
         this.setStatus('mature')
         this.animatePop()
@@ -222,6 +238,8 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
     if (!this.cropId) return
     const crop = getCropById(this.cropId)
+
+
     this.cropScale = (this.size / 44) * (crop.scale ?? 0.28)
     this.cropSprite.setScale(this.cropScale)
     this.cropSprite.setTexture(this.getCropFrame())
@@ -241,6 +259,8 @@ export class FarmPlot extends Phaser.GameObjects.Container {
   private getCropFrame(): string {
     if (!this.cropId) return '__DEFAULT'
     const crop = getCropById(this.cropId)
+
+
     switch (this.status) {
       case 'planted': return crop.frames[0]  // Hạt giống trên đất
       case 'watered': return crop.frames[1]  // Cây con đang lớn
