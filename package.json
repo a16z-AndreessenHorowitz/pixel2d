@@ -1,0 +1,13 @@
+{
+  "name": "pixel2d-gamefi-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "frontend": "cd front_end && corepack pnpm dev",
+    "backend": "cd backend && corepack pnpm dev",
+    "contracts:node": "cd contracts && corepack pnpm exec hardhat node",
+    "contracts:deploy": "cd contracts && corepack pnpm exec hardhat run scripts/deploy.ts --network localhost",
+    "test:contracts": "cd contracts && corepack pnpm test",
+    "test:backend": "cd backend && corepack pnpm test"
+  }
+}

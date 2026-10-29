@@ -15,7 +15,7 @@
 | **Giai đoạn 3** | Xây dựng Backend API (`backend/`), Shop Hạt Giống & Web3 Signer | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 4** | Xây dựng & Unit Test Smart Contracts (`contracts/`) | **HOÀN THÀNH** | **100%** |
 | **Giai đoạn 5** | Tích hợp Frontend: MetaMask, Shop, Claim Token & Buff Phaser | **HOÀN THÀNH** | **100%** |
-| **Giai đoạn 6** | Deploy Testnet (Sepolia/Amoy) & Kịch bản Demo Đồ Án | Sẵn sàng triển khai | 0% |
+| **Giai đoạn 6** | Deploy Testnet (Sepolia/Amoy) & Kịch bản Demo Đồ Án | **HOÀN THÀNH** | **100%** |
 
 ---
 
@@ -95,3 +95,13 @@
 - [x] **TSK-5.4**: Xây dựng Modal Web3 NFT Shop `NftShopModal.tsx`: hiển thị 4 loại NFT nông cụ, hỗ trợ cơ chế **1-Click Mint** (`mintWithToken`) tự động đốt token và mint NFT chỉ trong 1 giao dịch duy nhất không cần lệnh `approve()`.
 - [x] **TSK-5.5**: Hoàn thiện Cầu nối NFT Buff Bridge (React -> Phaser): khi ví kết nối hoặc sau khi mint thành công, hook phát Custom Event `web3-buff-updated` kích hoạt giảm ngay 20% thời gian lớn của cây trong `FarmPlot.ts` khi sở hữu "Bình tưới vàng".
 - [x] **TSK-5.6**: Kiểm thử chất lượng mã nguồn: `oxlint` 0 lỗi 0 cảnh báo, `tsc -b && vite build` hoàn thành với exit code 0 trong 1.89s.
+
+---
+
+## 7. NHẬT KÝ THỰC HIỆN GIAI ĐOẠN 6 (ĐÃ HOÀN THÀNH)
+
+- [x] **TSK-6.1**: Cấu hình mạng Hardhat Localhost (ChainId: 31337) và Testnet công khai (Polygon Amoy ChainId: 80002, Ethereum Sepolia ChainId: 11155111) trong `contracts/hardhat.config.ts`.
+- [x] **TSK-6.2**: Thiết lập root `package.json` tự động điều phối khởi chạy và kiểm thử cả 3 tầng (`frontend`, `backend`, `contracts:node`, `contracts:deploy`, `test:contracts`, `test:backend`).
+- [x] **TSK-6.3**: Viết tài liệu hướng dẫn tổng quan `README.md` tại thư mục gốc với sơ đồ kiến trúc hệ thống 3 tầng (Mermaid), thông số kỹ thuật, hướng dẫn cài đặt và khởi chạy.
+- [x] **TSK-6.4**: Biên soạn kịch bản báo cáo và demo đồ án chi tiết `demo_script.md` chuẩn 6 bước dành cho sinh viên trình bày trước hội đồng chấm thi, kèm bộ câu hỏi phản biện chuyên sâu.
+- [x] **TSK-6.5**: Kiểm chứng 100% các bài test tự động (15/15 unit test hợp đồng, 8/8 test tích hợp backend) và xác nhận toàn bộ mã nguồn nằm trên nhánh độc lập `feat/blockchain-gamefi`, giữ nguyên vẹn 100% nhánh `main` và `origin/Fishing`.
