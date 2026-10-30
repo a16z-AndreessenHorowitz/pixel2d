@@ -7,7 +7,11 @@
 
 ## 📌 PHẦN 1: CHUẨN BỊ TRƯỚC GIỜ BÁO CÁO (5 PHÚT)
 
-Mở 3 cửa sổ Terminal tại thư mục gốc của dự án:
+### Cách Nhanh Nhất (Khuyên Dùng):
+Nhấp đúp chuột vào file **[`run_all.bat`](./run_all.bat)** tại thư mục gốc!  
+File batch sẽ tự động bật 3 cửa sổ: Hardhat Node (port 8545), Backend API (port 4000), Frontend (port 5173), đồng thời tự động deploy Smart Contracts và mở trình duyệt tới `http://localhost:5173`.
+
+*(Nếu cần khởi chạy thủ công từng terminal: xem hướng dẫn bên dưới)*
 
 ### Terminal 1: Khởi động Local Blockchain (Hardhat Node & Deploy)
 ```bash

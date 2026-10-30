@@ -86,9 +86,24 @@ cd ..
 
 ---
 
-### 2. Khởi chạy dApp (Mở 3 Terminal)
+### 2. Khởi chạy dApp
 
-#### Terminal 1: Khởi động Local Blockchain & Deploy Contracts
+#### ⚡ Cách 1: 1-Click Tự Động Khởi Chạy Bằng File Batch (Khuyên Dùng Trên Windows)
+Chỉ cần nhấp đúp (Double-click) vào file **[`run_all.bat`](./run_all.bat)** tại thư mục gốc!  
+File batch sẽ tự động thực hiện tuần tự:
+1. Mở cửa sổ Blockchain **Hardhat Local Node** (port 8545).
+2. Tự động deploy Smart Contracts và xuất ABI sang Frontend.
+3. Mở cửa sổ **Backend API & Web3 Signer** (port 4000).
+4. Mở cửa sổ **Frontend dApp Game** (port 5173).
+5. Tự động mở trình duyệt web tới: `http://localhost:5173`.
+
+> 💡 *Khi muốn tắt toàn bộ các cửa sổ và tiến trình, chỉ cần chạy file **[`stop_all.bat`](./stop_all.bat)**.*
+
+---
+
+#### 🖥️ Cách 2: Khởi chạy thủ công bằng Terminal (Dành cho Linux/macOS hoặc debug)
+
+##### Terminal 1: Khởi động Local Blockchain & Deploy Contracts
 ```bash
 # Bước 1: Khởi động Hardhat node cục bộ (port 8545)
 pnpm run contracts:node
@@ -98,13 +113,13 @@ pnpm run contracts:deploy
 ```
 > *Lệnh deploy sẽ tự động trích xuất ABI và Contract Addresses sang `front_end/src/web3/abis/contracts.ts`.*
 
-#### Terminal 2: Khởi động Backend API & Web3 Signer
+##### Terminal 2: Khởi động Backend API & Web3 Signer
 ```bash
 pnpm run backend
 ```
 > *Backend chạy tại `http://localhost:4000` (Database SQLite tự khởi tạo tại `backend/data/pixel_farm.db`).*
 
-#### Terminal 3: Khởi động Game Frontend
+##### Terminal 3: Khởi động Game Frontend
 ```bash
 pnpm run frontend
 ```
