@@ -6,6 +6,7 @@ import { ShopModal, type ShopItem } from '../components/ShopModal'
 import { AppNavbar } from '../components/AppNavbar'
 import { ClaimTokenModal } from '../components/ClaimTokenModal'
 import { NftShopModal } from '../components/NftShopModal'
+import { AuthModal, type AuthUser } from '../components/AuthModal'
 import { useWeb3 } from '../web3/useWeb3'
 import { player } from '../mock-data/player'
 import {
@@ -33,6 +34,15 @@ export function GamePage() {
   const [shopOpen, setShopOpen] = useState(false)
   const [claimModalOpen, setClaimModalOpen] = useState(false)
   const [nftShopOpen, setNftShopOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const raw = localStorage.getItem('pixel_farm_user')
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  })
   const [faucetLoading, setFaucetLoading] = useState(false)
   const [completedQuestIds, setCompletedQuestIds] = useState<number[]>([1])
 
@@ -451,6 +461,26 @@ export function GamePage() {
     selectTool('watering-can')
   }
 
+  const handleAuthSuccess = useCallback((user: AuthUser, token: string) => {
+    setCurrentUser(user)
+    try {
+      localStorage.setItem('pixel_farm_user', JSON.stringify(user))
+      localStorage.setItem('pixel_farm_jwt', token)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const handleLogout = useCallback(() => {
+    setCurrentUser(null)
+    try {
+      localStorage.removeItem('pixel_farm_user')
+      localStorage.removeItem('pixel_farm_jwt')
+    } catch {
+      // ignore
+    }
+  }, [])
+
   return (
     <section className="game-page" aria-label="Pixel Farm game">
       {/* Top Web3 & Game Navigation Bar */}
@@ -461,6 +491,8 @@ export function GamePage() {
         ethBalance={ethBalance}
         isConnecting={isConnecting}
         faucetLoading={faucetLoading}
+        currentUser={currentUser}
+        onOpenAuth={() => setAuthModalOpen(true)}
         onConnect={connectWallet}
         onDisconnect={disconnect}
         onOpenClaim={() => setClaimModalOpen(true)}
@@ -513,6 +545,17 @@ export function GamePage() {
         ownedNfts={ownedNfts}
         mintNft={mintNft}
         onMintSuccess={handleMintNftSuccess}
+      />
+
+      {/* Auth Modal (SIWE & Traditional Login / Register) */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        currentUser={currentUser}
+        account={account}
+        connectWallet={connectWallet}
+        onAuthSuccess={handleAuthSuccess}
+        onLogout={handleLogout}
       />
 
       {/* =====================================================

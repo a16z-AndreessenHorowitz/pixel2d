@@ -1,5 +1,6 @@
 import { Badge, Container, Nav, Navbar } from 'react-bootstrap'
 import { NavLink } from 'react-router-dom'
+import type { AuthUser } from './AuthModal'
 import './AppNavbar.css'
 
 export interface AppNavbarProps {
@@ -9,6 +10,8 @@ export interface AppNavbarProps {
   ethBalance: string
   isConnecting: boolean
   faucetLoading?: boolean
+  currentUser: AuthUser | null
+  onOpenAuth: () => void
   onConnect: () => void
   onDisconnect: () => void
   onOpenClaim: () => void
@@ -22,6 +25,8 @@ export function AppNavbar({
   pixelBalance,
   isConnecting,
   faucetLoading,
+  currentUser,
+  onOpenAuth,
   onConnect,
   onDisconnect,
   onOpenClaim,
@@ -65,6 +70,30 @@ export function AppNavbar({
           </Nav>
 
           <div className="navbar-web3-actions">
+            {/* User Account / SIWE Auth Button */}
+            {currentUser ? (
+              <button
+                type="button"
+                className="user-profile-badge"
+                onClick={onOpenAuth}
+                title="Hồ sơ tài khoản & Đăng xuất"
+              >
+                <span className="user-icon">👨‍🌾</span>
+                <span className="user-name">{currentUser.username}</span>
+                <span className="user-online-dot" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="auth-nav-btn"
+                onClick={onOpenAuth}
+                title="Đăng nhập hoặc đăng ký tài khoản (Hỗ trợ MetaMask SIWE)"
+              >
+                <span>🔑</span>
+                <span>Tài Khoản</span>
+              </button>
+            )}
+
             {/* In-Game Coin Display */}
             <div className="coin-balance" title="Số dư Coin trong game">
               <span className="coin-dot" aria-hidden="true" />

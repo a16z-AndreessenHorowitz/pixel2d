@@ -85,6 +85,68 @@
   transform: translateY(-1px);
 }
 
+.auth-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #27ae60;
+  border: 2px solid #1e824c;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #1e824c;
+  transition: transform 0.1s ease, filter 0.15s ease;
+  white-space: nowrap;
+}
+
+.auth-nav-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #e8f5e9;
+  border: 2px solid #4caf50;
+  color: #1b5e20;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.user-profile-badge:hover {
+  background: #c8e6c9;
+  transform: translateY(-1px);
+}
+
+.user-profile-badge .user-icon {
+  font-size: 1rem;
+}
+
+.user-profile-badge .user-name {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-profile-badge .user-online-dot {
+  width: 7px;
+  height: 7px;
+  background: #2e7d32;
+  border-radius: 50%;
+  box-shadow: 0 0 5px #4caf50;
+}
+
 .navbar-web3-actions {
   display: flex;
   align-items: center;
