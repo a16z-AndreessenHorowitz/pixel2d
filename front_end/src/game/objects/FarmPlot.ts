@@ -9,7 +9,7 @@ import { getCropById } from '../data/crops'
  *  watered → đã tưới, cây đang lớn (timer chạy)
  *  mature  → cây đã trưởng thành, sẵn sàng thu hoạch
  */
-export type FarmPlotStatus = 'empty' | 'planted' | 'watered' | 'mature'
+export type FarmPlotStatus = 'empty' | 'tilled' | 'planted' | 'watered' | 'mature'
 
 type FarmPlotOptions = {
   col: number
@@ -58,7 +58,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     this.setName(`farm-plot-${this.row}-${this.col}`)
 
     // ── Dirt base ──
-    this.dirtImage = scene.add.image(0, 0, 'dirt-initial')
+    this.dirtImage = scene.add.image(0, 0, 'dirt-empty')
     this.dirtImage.setDisplaySize(options.size, options.size)
     this.dirtImage.setInteractive({ useHandCursor: true })
     this.dirtImage.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
@@ -95,9 +95,22 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
-  /** Gieo hạt vào ô đất trống. Không làm gì nếu ô đã có cây. */
-  plant(cropId: CropId) {
+  /** Xới đất bằng Cuốc (Hoe / Gold Hoe). Chuyển ô đất từ empty sang tilled. */
+  till(isGold: boolean = false) {
     if (this.status !== 'empty') return
+    this.setStatus('tilled')
+    this.animateBounce()
+    this.animateTill()
+    if (isGold) {
+      this.showFloatingText('✨ Cuốc Vàng xới đất!', '#ffd700')
+    } else {
+      this.showFloatingText('⛏️ Xới đất!', '#a8e6cf')
+    }
+  }
+
+  /** Gieo hạt vào ô đất đã xới (tilled). Không làm gì nếu ô đã có cây. */
+  plant(cropId: CropId) {
+    if (this.status !== 'empty' && this.status !== 'tilled') return
     this.cropId = cropId
     const crop = getCropById(cropId)
     this.cropScale = (this.size / 44) * (crop.scale ?? 0.28)
@@ -139,7 +152,17 @@ export class FarmPlot extends Phaser.GameObjects.Container {
   handleTool(tool: string) {
     switch (this.status) {
       case 'empty':
-        // Chỉ cho phép dùng seed tool
+        if (tool === 'hoe' || tool === 'gold-hoe') {
+          this.till(tool === 'gold-hoe')
+        } else if (tool.endsWith('-seed')) {
+          this.shake()
+          this.showFloatingText('⛏️ Cần cuốc đất trước khi gieo!', '#ffd166')
+        } else {
+          this.shake()
+        }
+        break
+
+      case 'tilled':
         if (tool.endsWith('-seed')) {
           const cropId = tool.replace('-seed', '') as CropId
           const plantEvent = new CustomEvent('farm-plant-crop', {
@@ -154,26 +177,36 @@ export class FarmPlot extends Phaser.GameObjects.Container {
             this.shake()
             this.showFloatingText('Hết hạt giống!', '#ff6b6b')
           }
+        } else if (tool === 'hoe' || tool === 'gold-hoe') {
+          this.animateBounce()
+          this.showFloatingText('Đất đã được cày xới!')
         } else {
           this.shake()
         }
         break
+
       case 'planted':
         if (tool === 'watering-can' || tool === 'gold-watering-can') {
           this.water()
+        } else if (tool === 'hoe' || tool === 'gold-hoe') {
+          this.shake()
+          this.showFloatingText('Đất đã có mầm cây!')
         } else {
           this.shake()
         }
         break
+
       case 'watered':
         // Đang lớn, chưa thu hoạch được → shake để thông báo
         this.shake()
         break
+
       case 'mature':
         if (tool === 'sickle' || tool === 'gold-sickle') {
           this.harvest()
         } else {
           this.animateBounce()
+          this.showFloatingText('Dùng Liềm để thu hoạch!', '#ffd166')
         }
         break
     }
@@ -224,7 +257,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     // Texture đất
     this.dirtImage.setTexture(this.getDirtTexture())
 
-    if (this.status === 'empty') {
+    if (this.status === 'empty' || this.status === 'tilled') {
       this.cropSprite.setVisible(false)
       this.progressBg.setVisible(false)
       this.progressBar.setVisible(false)
@@ -248,12 +281,27 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
   private getDirtTexture(): string {
     switch (this.status) {
-      case 'planted': return 'dirt-planted'
+      case 'tilled':
+      case 'planted':
+        return 'dirt-tilled'
       case 'watered':
-      case 'mature': return 'dirt-watered'
+      case 'mature':
+        return 'dirt-watered'
       case 'empty':
-      default: return 'dirt-initial'
+      default:
+        return 'dirt-empty'
     }
+  }
+
+  private animateTill() {
+    this.scene.tweens.add({
+      targets: this.dirtImage,
+      scaleX: 1.15,
+      scaleY: 0.88,
+      duration: 90,
+      yoyo: true,
+      ease: 'Back.easeOut',
+    })
   }
 
   private getCropFrame(): string {

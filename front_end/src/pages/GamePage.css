@@ -37,14 +37,29 @@
 .game-title span { display: block; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.18em; }
 .game-title strong { color: #fff3b2; font-family: monospace; font-size: 0.9rem; }
 
-/* ── D-pad controls ── */
+/* ── D-pad controls (chỉ kích hoạt trên thiết bị cảm ứng / mobile) ── */
 .game-controls {
   bottom: 24px;
-  display: grid;
+  display: none; /* Mặc định ẩn trên Desktop/PC có chuột & bàn phím */
   gap: 5px;
   grid-template-columns: repeat(3, 44px);
   grid-template-rows: repeat(2, 44px);
   left: 22px;
+  z-index: 20;
+}
+
+/* Chỉ hiển thị phím điều hướng ảo khi ở màn hình cảm ứng hoặc mobile */
+@media (pointer: coarse), (max-width: 991px) {
+  .game-controls {
+    display: grid;
+  }
+}
+
+/* Ẩn triệt để trên màn hình máy tính để bàn / laptop với chuột */
+@media (hover: hover) and (pointer: fine) and (min-width: 992px) {
+  .game-controls {
+    display: none !important;
+  }
 }
 
 .game-controls button {

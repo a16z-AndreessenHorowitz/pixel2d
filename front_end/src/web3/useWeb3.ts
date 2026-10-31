@@ -19,7 +19,15 @@ export interface Web3State {
 }
 
 export function useWeb3() {
-  const [account, setAccount] = useState<string | null>(null)
+  const [account, setAccount] = useState<string | null>(() => {
+    try {
+      const wasDisconnected = localStorage.getItem('pixel_wallet_disconnected') === 'true'
+      if (wasDisconnected) return null
+      return localStorage.getItem('pixel_wallet_address')
+    } catch {
+      return null
+    }
+  })
   const [chainId, setChainId] = useState<number | null>(null)
   const [ethBalance, setEthBalance] = useState<string>('0.00')
   const [pixelBalance, setPixelBalance] = useState<string>('0')
@@ -154,6 +162,12 @@ export function useWeb3() {
 
       const selectedAddress = accounts[0].toLowerCase()
       setAccount(selectedAddress)
+      try {
+        localStorage.setItem('pixel_wallet_address', selectedAddress)
+        localStorage.removeItem('pixel_wallet_disconnected')
+      } catch {
+        // ignore storage errors
+      }
 
       const network = await provider.getNetwork()
       setChainId(Number(network.chainId))
@@ -175,6 +189,12 @@ export function useWeb3() {
     setPixelBalance('0')
     setOwnedNfts([false, false, false, false])
     dispatchBuffEvent([false, false, false, false])
+    try {
+      localStorage.removeItem('pixel_wallet_address')
+      localStorage.setItem('pixel_wallet_disconnected', 'true')
+    } catch {
+      // ignore storage errors
+    }
   }, [dispatchBuffEvent])
 
   // Claim Faucet (100 $PIXEL)
@@ -253,6 +273,36 @@ export function useWeb3() {
     return () => clearTimeout(timer)
   }, [account, refreshBalances])
 
+  // Auto-connect check on page reload (F5) via silent eth_accounts
+  useEffect(() => {
+    if (!window.ethereum) return
+
+    const checkAuthorizedAccount = async () => {
+      try {
+        const wasDisconnected = localStorage.getItem('pixel_wallet_disconnected') === 'true'
+        if (wasDisconnected) return
+
+        const provider = new BrowserProvider(window.ethereum as any)
+        const accounts: string[] = await provider.send('eth_accounts', [])
+        if (accounts && accounts.length > 0) {
+          const active = accounts[0].toLowerCase()
+          setAccount(active)
+          localStorage.setItem('pixel_wallet_address', active)
+          const network = await provider.getNetwork()
+          setChainId(Number(network.chainId))
+        } else {
+          // No active account in MetaMask
+          setAccount(null)
+          localStorage.removeItem('pixel_wallet_address')
+        }
+      } catch (err: any) {
+        console.warn('Silent auto-reconnect failed:', err?.message)
+      }
+    }
+
+    checkAuthorizedAccount()
+  }, [])
+
   // Listen to MetaMask account / chain events
   useEffect(() => {
     if (!window.ethereum) return
@@ -261,7 +311,14 @@ export function useWeb3() {
       if (accounts.length === 0) {
         disconnect()
       } else {
-        setAccount(accounts[0].toLowerCase())
+        const active = accounts[0].toLowerCase()
+        setAccount(active)
+        try {
+          localStorage.setItem('pixel_wallet_address', active)
+          localStorage.removeItem('pixel_wallet_disconnected')
+        } catch {
+          // ignore
+        }
       }
     }
 

@@ -39,7 +39,7 @@ export function AppNavbar({
 
   return (
     <Navbar expand="lg" className="app-navbar" sticky="top">
-      <Container fluid="xl">
+      <Container fluid className="px-2 px-md-3">
         <Navbar.Brand as={NavLink} to="/game" className="brand-mark">
           <span className="brand-icon" aria-hidden="true">
             🌾

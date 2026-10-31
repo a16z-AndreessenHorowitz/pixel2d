@@ -4,12 +4,13 @@
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(255, 252, 244, 0.94);
+  background: rgba(255, 252, 244, 0.96);
   border-bottom: 2px solid var(--line);
-  box-shadow: 0 10px 24px rgba(45, 60, 38, 0.08);
+  box-shadow: 0 4px 18px rgba(45, 60, 38, 0.08);
   backdrop-filter: blur(14px);
-  padding: 6px 0;
-  height: 52px;
+  padding: 4px 0;
+  min-height: 52px;
+  height: auto;
 }
 
 .brand-mark {
@@ -150,7 +151,8 @@
 .navbar-web3-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .coin-balance {
@@ -161,11 +163,11 @@
   color: #4f3515;
   display: inline-flex;
   font-weight: 800;
-  gap: 8px;
-  min-height: 38px;
-  padding: 6px 10px;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 8px;
   white-space: nowrap;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .coin-dot {
@@ -174,36 +176,38 @@
   border-radius: 50%;
   box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.16);
   display: inline-block;
-  height: 16px;
-  width: 16px;
+  height: 14px;
+  width: 14px;
 }
 
 .web3-connected-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .pixel-token-pill {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: #ede7f6;
   border: 2px solid #7e57c2;
   border-radius: 6px;
-  padding: 5px 10px;
+  padding: 4px 8px;
   color: #4527a0;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   box-shadow: inset 0 -2px 0 rgba(126, 87, 194, 0.3);
+  white-space: nowrap;
 }
 
 .token-amount {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .token-symbol {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #5e35b1;
 }
 
@@ -212,12 +216,13 @@
   border: 2px solid #039be5;
   color: #0277bd;
   font-weight: 700;
-  font-size: 0.8rem;
-  padding: 5px 10px;
+  font-size: 0.78rem;
+  padding: 4px 8px;
   border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.15s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .faucet-pill-btn:hover:not(:disabled) {
@@ -232,17 +237,19 @@
 .wallet-address-pill {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: #f1f2f6;
   border: 2px solid #ced6e0;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
   font-family: monospace;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #2f3542;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .wallet-address-pill:hover {
@@ -252,27 +259,28 @@
 }
 
 .online-indicator {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   background: #2ed573;
   border-radius: 50%;
-  box-shadow: 0 0 6px #2ed573;
+  box-shadow: 0 0 5px #2ed573;
 }
 
 .connect-metamask-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: #f39c12;
   border: 2px solid #d35400;
   color: #fff;
   font-weight: 800;
-  font-size: 0.85rem;
-  padding: 6px 14px;
+  font-size: 0.82rem;
+  padding: 5px 10px;
   border-radius: 6px;
   cursor: pointer;
   box-shadow: 0 3px 0 #d35400;
   transition: transform 0.1s ease, filter 0.15s ease;
+  white-space: nowrap;
 }
 
 .connect-metamask-btn:hover:not(:disabled) {
@@ -286,17 +294,72 @@
 }
 
 .metamask-fox-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
+}
+
+/* ── Responsive breakpoints ── */
+@media (max-width: 1250px) {
+  .nav-links {
+    margin-left: 6px;
+    gap: 4px;
+  }
+  .nav-links .nav-link {
+    padding: 4px 8px;
+    font-size: 0.82rem;
+  }
+  .nav-action-btn {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 1100px) {
+  .brand-text {
+    display: none; /* Rút gọn thương hiệu thành biểu tượng 🌾 khi cửa sổ MetaMask mở */
+  }
+  .navbar-web3-actions {
+    gap: 5px;
+  }
 }
 
 @media (max-width: 991px) {
+  .brand-text {
+    display: inline;
+  }
+  .navbar-collapse {
+    background: rgba(255, 252, 244, 0.98);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ded6c2;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+    margin-top: 8px;
+  }
   .nav-links {
-    margin: 10px 0;
-    flex-wrap: wrap;
+    margin: 6px 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
   }
   .navbar-web3-actions {
-    margin-top: 10px;
+    margin-top: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .web3-connected-group {
     flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  .pixel-token-pill,
+  .wallet-address-pill,
+  .faucet-pill-btn,
+  .coin-balance,
+  .auth-nav-btn,
+  .user-profile-badge,
+  .connect-metamask-btn {
+    justify-content: center;
+    width: 100%;
   }
 }

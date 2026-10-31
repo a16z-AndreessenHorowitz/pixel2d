@@ -56,8 +56,10 @@ export class FarmScene extends Phaser.Scene {
     })
 
     // ── Crop & Soil Textures (Used by FarmPlot) ──
-    this.load.image('dirt-initial', '/assets/corp/tilled_light_dirt_final.png')
-    this.load.image('dirt-planted', '/assets/corp/cracked_dirt_final.png')
+    this.load.image('dirt-empty', '/assets/corp/cracked_dirt_final.png')
+    this.load.image('dirt-initial', '/assets/corp/cracked_dirt_final.png')
+    this.load.image('dirt-tilled', '/assets/corp/tilled_light_dirt_final.png')
+    this.load.image('dirt-planted', '/assets/corp/tilled_light_dirt_final.png')
     this.load.image('dirt-watered', '/assets/corp/plain_dirt_bottom_final.png')
 
     // ── Preload Crop Frames (Corn, Rice, Strawberry, Pumpkin, Watermelon) ──
