@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { GameCanvas } from '../components/GameCanvas'
 import { StatsPanel } from '../components/StatsPanel'
 import { QuestPanel } from '../components/QuestPanel'
@@ -7,11 +7,16 @@ import { AppNavbar } from '../components/AppNavbar'
 import { ClaimTokenModal } from '../components/ClaimTokenModal'
 import { NftShopModal } from '../components/NftShopModal'
 import { AuthModal, type AuthUser } from '../components/AuthModal'
+import { DialogueModal } from '../components/DialogueModal'
+import { GameFiHubModal } from '../components/GameFiHubModal'
+import type { DialogueStep } from '../data/dialogues'
+import { soundEngine } from '../audio/SoundEngine'
 import { useWeb3 } from '../web3/useWeb3'
 import { player } from '../mock-data/player'
 import {
   DEFAULT_INVENTORY,
   DEFAULT_TOOLBAR,
+  EDIBLE_ITEMS,
   INVENTORY_SIZE,
   ITEM_DEFINITIONS,
   loadInventory,
@@ -30,6 +35,18 @@ const TOOL_KEYS = [1, 2, 3, 4, 5, 6, 7, 8]
 export function GamePage() {
   const [selectedTool, setSelectedTool] = useState<ToolId>('watering-can')
   const [coins, setCoins] = useState(player.coins)
+  const [energy, setEnergy] = useState(100)
+  const [maxEnergy, setMaxEnergy] = useState(100)
+  const energyRef = useRef(100)
+  const [level, setLevel] = useState(1)
+  const [xp, setXp] = useState(0)
+  const [levelUpMessage, setLevelUpMessage] = useState<string | null>(null)
+  const [energyAlert, setEnergyAlert] = useState<{ message: string; type: 'error' | 'success' } | null>(null)
+  const [selectedInvIndex, setSelectedInvIndex] = useState<number | null>(null)
+
+  const [dialogueOpen, setDialogueOpen] = useState(false)
+  const [activeNpcId, setActiveNpcId] = useState('barney')
+  const [gameFiHubOpen, setGameFiHubOpen] = useState(false)
   const [inventoryOpen, setInventoryOpen] = useState(false)
   const [shopOpen, setShopOpen] = useState(false)
   const [claimModalOpen, setClaimModalOpen] = useState(false)
@@ -86,7 +103,14 @@ export function GamePage() {
         .then((res) => res.json())
         .then((data) => {
           if (data.success && data.state) {
-            setCoins(data.state.coins)
+            if (typeof data.state.coins === 'number') setCoins(data.state.coins)
+            if (typeof data.state.energy === 'number') {
+              setEnergy(data.state.energy)
+              energyRef.current = data.state.energy
+            }
+            if (typeof data.state.max_energy === 'number') setMaxEnergy(data.state.max_energy)
+            if (typeof data.state.level === 'number') setLevel(data.state.level)
+            if (typeof data.state.xp === 'number') setXp(data.state.xp)
           }
         })
         .catch(() => {
@@ -203,6 +227,207 @@ export function GamePage() {
 
   /*
    * ---------------------------------------------------------
+   * Audio Engine & Retro BGM (Pixels.xyz Pillar 3)
+   * ---------------------------------------------------------
+   */
+  useEffect(() => {
+    const handleFirstGesture = () => {
+      if (soundEngine.getBgmEnabled()) {
+        soundEngine.startBGM()
+      }
+      window.removeEventListener('pointerdown', handleFirstGesture)
+      window.removeEventListener('keydown', handleFirstGesture)
+    }
+
+    window.addEventListener('pointerdown', handleFirstGesture)
+    window.addEventListener('keydown', handleFirstGesture)
+    return () => {
+      window.removeEventListener('pointerdown', handleFirstGesture)
+      window.removeEventListener('keydown', handleFirstGesture)
+      soundEngine.stopBGM()
+    }
+  }, [])
+
+  /*
+   * ---------------------------------------------------------
+   * Energy Management & XP Progression (Pixels.xyz Pillar 1)
+   * ---------------------------------------------------------
+   */
+  useEffect(() => {
+    const handleActionEnergy = (event: Event) => {
+      const customEvent = event as CustomEvent<{ cost: number; action: string }>
+      const cost = customEvent.detail?.cost ?? 2
+      if (energyRef.current < cost) {
+        customEvent.preventDefault()
+        soundEngine.playExhausted()
+        setEnergyAlert({
+          message: `⚡ Kiệt sức! Cần ít nhất ${cost} Năng lượng. Hãy ăn nông sản hoặc cá!`,
+          type: 'error',
+        })
+        setTimeout(() => setEnergyAlert(null), 3000)
+        return
+      }
+      const next = Math.max(0, energyRef.current - cost)
+      energyRef.current = next
+      setEnergy(next)
+    }
+
+    window.addEventListener('farm-action-energy', handleActionEnergy)
+    return () => window.removeEventListener('farm-action-energy', handleActionEnergy)
+  }, [])
+
+  const addXP = useCallback((amount: number) => {
+    setXp((prevXp) => {
+      const nextXp = prevXp + amount
+      setLevel((prevLevel) => {
+        const requiredXp = prevLevel * 100
+        if (nextXp >= requiredXp) {
+          const nextLevel = prevLevel + 1
+          const nextMaxEnergy = 100 + (nextLevel - 1) * 5
+          setMaxEnergy(nextMaxEnergy)
+          setEnergy(nextMaxEnergy)
+          energyRef.current = nextMaxEnergy
+          soundEngine.playLevelUp()
+          setLevelUpMessage(
+            `🎉 LEVEL UP! Chúc mừng bạn đã đạt Cấp ${nextLevel}! Hồi phục đầy Năng lượng và Tối đa ⚡ +5.`,
+          )
+          setTimeout(() => setLevelUpMessage(null), 4000)
+          return nextLevel
+        }
+        return prevLevel
+      })
+      return nextXp
+    })
+  }, [])
+
+  const handleEatItem = useCallback(
+    (source: 'inventory' | 'toolbar', index: number) => {
+      const slot = source === 'inventory' ? inventory[index] : toolbar[index]
+      if (!slot) return
+
+      const edible = EDIBLE_ITEMS[slot.id]
+      if (!edible) return
+
+      if (energy >= maxEnergy) {
+        setEnergyAlert({
+          message: '⚡ Thể lực đang đầy (100%), không cần ăn thêm!',
+          type: 'error',
+        })
+        setTimeout(() => setEnergyAlert(null), 2500)
+        return
+      }
+
+      if (source === 'inventory') {
+        setInventory((prev) => {
+          const next = [...prev]
+          const cur = next[index]
+          if (!cur) return prev
+          if (cur.quantity > 1) {
+            next[index] = { ...cur, quantity: cur.quantity - 1 }
+          } else {
+            next[index] = null
+            setSelectedInvIndex(null)
+          }
+          return next
+        })
+      } else {
+        setToolbar((prev) => {
+          const next = [...prev]
+          const cur = next[index]
+          if (!cur) return prev
+          if (cur.quantity > 1) {
+            next[index] = { ...cur, quantity: cur.quantity - 1 }
+          } else {
+            next[index] = null
+            setSelectedTool('watering-can')
+          }
+          return next
+        })
+      }
+
+      const restored = Math.min(maxEnergy, energy + edible.energy)
+      setEnergy(restored)
+      energyRef.current = restored
+      soundEngine.playEat()
+      setEnergyAlert({
+        message: `🍽️ Bạn đã ăn ${slot.label}! Hồi phục +${edible.energy} ⚡ Năng lượng.`,
+        type: 'success',
+      })
+      setTimeout(() => setEnergyAlert(null), 3000)
+    },
+    [energy, maxEnergy, inventory, toolbar],
+  )
+
+  const handleEatSelectedTool = () => {
+    const idx = toolbar.findIndex((t) => t && t.id === selectedTool)
+    if (idx !== -1) {
+      handleEatItem('toolbar', idx)
+    }
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * NPC Dialogue Interactions (Pixels.xyz Pillar 2)
+   * ---------------------------------------------------------
+   */
+  useEffect(() => {
+    const handleOpenDialogue = (e: Event) => {
+      const customEvent = e as CustomEvent<{ npcId: string }>
+      if (customEvent.detail?.npcId) {
+        setActiveNpcId(customEvent.detail.npcId)
+        setDialogueOpen(true)
+      }
+    }
+
+    window.addEventListener('open-npc-dialogue', handleOpenDialogue)
+    return () => window.removeEventListener('open-npc-dialogue', handleOpenDialogue)
+  }, [])
+
+  const handleClaimNpcReward = (reward: DialogueStep['reward']) => {
+    if (!reward) return
+
+    // 1. Coins reward
+    if (reward.coins) {
+      if (!currentUser) {
+        alert('🔒 Bạn chưa đăng nhập! Vui lòng đăng nhập để lưu Coin từ nhiệm vụ NPC.')
+        setAuthModalOpen(true)
+      } else {
+        setCoins((prev) => prev + reward.coins!)
+      }
+    }
+
+    // 2. Seeds or Item reward
+    if (reward.quantity && reward.itemId) {
+      const def = ITEM_DEFINITIONS[reward.itemId as ToolId]
+      if (def) {
+        addItem({ ...def, quantity: reward.quantity })
+      }
+    }
+
+    // 3. Energy restore
+    if (reward.type === 'energy') {
+      setEnergy(maxEnergy)
+      energyRef.current = maxEnergy
+      setEnergyAlert({
+        message: '⚡ Bác Barney đã truyền bí quyết và hồi phục 100% Năng lượng cho bạn!',
+        type: 'success',
+      })
+      setTimeout(() => setEnergyAlert(null), 3000)
+    }
+
+    // 4. XP reward
+    if (reward.xp) {
+      addXP(reward.xp)
+    }
+
+    setLevelUpMessage(
+      `🎁 Bạn đã nhận thưởng từ ${activeNpcId === 'barney' ? 'Bác Barney' : 'Cô Hazel'}!`,
+    )
+    setTimeout(() => setLevelUpMessage(null), 3500)
+  }
+
+  /*
+   * ---------------------------------------------------------
    * Event Listeners (Gieo hạt, Thu hoạch, Câu cá)
    * ---------------------------------------------------------
    */
@@ -227,10 +452,18 @@ export function GamePage() {
       const customEvent = event as CustomEvent
       const crop = customEvent.detail?.crop
 
-      if (crop && typeof crop.harvestCoins === 'number') {
-        setCoins((prev) => prev + crop.harvestCoins)
+      if (crop) {
+        if (!currentUser) {
+          alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP từ thu hoạch.')
+          setAuthModalOpen(true)
+        } else {
+          if (typeof crop.harvestCoins === 'number') {
+            setCoins((prev) => prev + crop.harvestCoins)
+          }
+          addXP(15)
+        }
 
-        // Cộng nông sản thu hoạch vào kho đồ
+        // Vẫn cộng nông sản thu hoạch vào kho đồ
         const cropDef = ITEM_DEFINITIONS[crop.id as ToolId]
         if (cropDef) {
           addItem({ ...cropDef, quantity: 1 })
@@ -240,7 +473,7 @@ export function GamePage() {
 
     window.addEventListener('farm-harvest', handleFarmHarvest)
     return () => window.removeEventListener('farm-harvest', handleFarmHarvest)
-  }, [addItem])
+  }, [addItem, currentUser, addXP])
 
   useEffect(() => {
     const handleFishingCatch = (
@@ -253,8 +486,14 @@ export function GamePage() {
       const coinsReceived = customEvent.detail?.coins
       const fishObj = customEvent.detail?.fish
 
-      if (typeof coinsReceived === 'number') {
-        setCoins((prev) => prev + coinsReceived)
+      if (!currentUser) {
+        alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP khi câu cá.')
+        setAuthModalOpen(true)
+      } else {
+        if (typeof coinsReceived === 'number') {
+          setCoins((prev) => prev + coinsReceived)
+        }
+        addXP(25)
       }
 
       if (fishObj && ITEM_DEFINITIONS[fishObj.id as ToolId]) {
@@ -264,7 +503,7 @@ export function GamePage() {
 
     window.addEventListener('fishing-catch', handleFishingCatch)
     return () => window.removeEventListener('fishing-catch', handleFishingCatch)
-  }, [addItem])
+  }, [addItem, currentUser, addXP])
 
   /*
    * ---------------------------------------------------------
@@ -274,6 +513,7 @@ export function GamePage() {
   const handleBuyShopItem = (item: ShopItem) => {
     if (coins < item.priceCoins) return
     setCoins((prev) => prev - item.priceCoins)
+    soundEngine.playCoin()
 
     const def = ITEM_DEFINITIONS[item.id]
     if (def) {
@@ -281,10 +521,86 @@ export function GamePage() {
     }
   }
 
+  const handleSellItem = (itemId: string, quantity: number, pricePerUnit: number) => {
+    if (!currentUser) {
+      alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để bán nông sản nhận Coin.')
+      setAuthModalOpen(true)
+      return
+    }
+
+    let remainingToRemove = quantity
+
+    // Trừ từ toolbar trước
+    setToolbar((prev) => {
+      const next = [...prev]
+      for (let i = 0; i < next.length; i++) {
+        const slot = next[i]
+        if (slot && slot.id === itemId && remainingToRemove > 0) {
+          if (slot.quantity <= remainingToRemove) {
+            remainingToRemove -= slot.quantity
+            next[i] = null
+          } else {
+            next[i] = { ...slot, quantity: slot.quantity - remainingToRemove }
+            remainingToRemove = 0
+          }
+        }
+      }
+      return next
+    })
+
+    // Sau đó trừ tiếp từ inventory
+    if (remainingToRemove > 0) {
+      setInventory((prev) => {
+        const next = [...prev]
+        for (let i = 0; i < next.length; i++) {
+          const slot = next[i]
+          if (slot && slot.id === itemId && remainingToRemove > 0) {
+            if (slot.quantity <= remainingToRemove) {
+              remainingToRemove -= slot.quantity
+              next[i] = null
+            } else {
+              next[i] = { ...slot, quantity: slot.quantity - remainingToRemove }
+              remainingToRemove = 0
+            }
+          }
+        }
+        return next
+      })
+    }
+
+    const earned = pricePerUnit * quantity
+    setCoins((prev) => prev + earned)
+    soundEngine.playCoin()
+
+    // Đồng bộ gọi API backend
+    const token = localStorage.getItem('pixel_farm_jwt')
+    fetch('http://localhost:4000/api/shop/sell', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        itemId,
+        quantity,
+        address: account || undefined,
+      }),
+    }).catch(() => {
+      // offline fallback
+    })
+  }
+
   const handleClaimQuest = (questId: number, rewardCoins: number) => {
+    if (!currentUser) {
+      alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin thưởng nhiệm vụ.')
+      setAuthModalOpen(true)
+      return
+    }
     if (completedQuestIds.includes(questId)) return
     setCoins((prev) => prev + rewardCoins)
     setCompletedQuestIds((prev) => [...prev, questId])
+    soundEngine.playCoin()
+    addXP(50)
   }
 
   /*
@@ -300,6 +616,7 @@ export function GamePage() {
     setFaucetLoading(true)
     try {
       await claimFaucet()
+      soundEngine.playCoin()
       alert('🎉 Đã nhận 100 $PIXEL thử nghiệm từ Faucet Contract!')
     } catch (err: any) {
       alert('Lỗi Faucet: ' + (err?.reason || err?.message || 'Không thể nhận faucet'))
@@ -337,6 +654,9 @@ export function GamePage() {
       if (event.key.toLowerCase() === 'i') {
         event.preventDefault()
         setInventoryOpen((prev) => !prev)
+      } else if (event.key.toLowerCase() === 'h') {
+        event.preventDefault()
+        setGameFiHubOpen((prev) => !prev)
       }
     }
 
@@ -497,23 +817,43 @@ export function GamePage() {
         onDisconnect={disconnect}
         onOpenClaim={() => setClaimModalOpen(true)}
         onOpenNftShop={() => setNftShopOpen(true)}
+        onOpenGameFiHub={() => setGameFiHubOpen(true)}
         onClaimFaucet={handleClaimFaucet}
       />
 
       <GameCanvas />
 
+      {/* Level Up & Energy Alerts */}
+      {levelUpMessage && (
+        <div className="level-up-banner">
+          {levelUpMessage}
+        </div>
+      )}
+
+      {energyAlert && (
+        <div className={`energy-alert-toast ${energyAlert.type === 'success' ? 'energy-alert-toast--success' : ''}`}>
+          {energyAlert.message}
+        </div>
+      )}
+
       {/* Left panel */}
       <StatsPanel
-        energy={player.energy}
-        maxEnergy={100}
+        energy={energy}
+        maxEnergy={maxEnergy}
         coins={coins}
-        gems={player.level}
+        gems={level}
+        level={level}
+        xp={xp}
+        isLoggedIn={Boolean(currentUser)}
+        onOpenAuth={() => setAuthModalOpen(true)}
       />
 
       {/* Right panel */}
       <QuestPanel
         quests={quests}
         completedIds={completedQuestIds}
+        isLoggedIn={Boolean(currentUser)}
+        onOpenAuth={() => setAuthModalOpen(true)}
         onClaimReward={handleClaimQuest}
       />
 
@@ -522,7 +862,10 @@ export function GamePage() {
         isOpen={shopOpen}
         onClose={() => setShopOpen(false)}
         coins={coins}
+        inventory={inventory}
+        toolbar={toolbar}
         onBuyItem={handleBuyShopItem}
+        onSellItem={handleSellItem}
       />
 
       {/* Web3 Token Claim Modal (Sync Coins to $PIXEL) */}
@@ -558,6 +901,33 @@ export function GamePage() {
         onLogout={handleLogout}
       />
 
+      {/* Interactive NPC Dialogue Modal (Pixels.xyz Pillar 2) */}
+      <DialogueModal
+        isOpen={dialogueOpen}
+        npcId={activeNpcId}
+        onClose={() => setDialogueOpen(false)}
+        onOpenShop={() => setShopOpen(true)}
+        onClaimReward={handleClaimNpcReward}
+      />
+
+      {/* Web3 GameFi Vault & Dashboard Hub (Pixels.xyz Pillar 4) */}
+      <GameFiHubModal
+        isOpen={gameFiHubOpen}
+        onClose={() => setGameFiHubOpen(false)}
+        coins={coins}
+        energy={energy}
+        maxEnergy={maxEnergy}
+        level={level}
+        xp={xp}
+        account={account}
+        pixelBalance={pixelBalance}
+        ethBalance={ethBalance}
+        ownedNfts={ownedNfts}
+        onOpenClaim={() => setClaimModalOpen(true)}
+        onOpenNftShop={() => setNftShopOpen(true)}
+        onConnectWallet={connectWallet}
+      />
+
       {/* =====================================================
           INVENTORY POPUP
           ===================================================== */}
@@ -586,7 +956,8 @@ export function GamePage() {
               return (
                 <div
                   key={index}
-                  className={`inventory-slot${item ? ' inventory-slot-filled' : ''}`}
+                  className={`inventory-slot${item ? ' inventory-slot-filled' : ''}${selectedInvIndex === index ? ' inventory-slot-selected' : ''}`}
+                  onClick={() => setSelectedInvIndex(index)}
                   onDragOver={(event) => {
                     event.preventDefault()
                     event.dataTransfer.dropEffect = 'move'
@@ -625,14 +996,47 @@ export function GamePage() {
             })}
           </div>
 
+          {selectedInvIndex !== null && inventory[selectedInvIndex] && (
+            <div className="inventory-eat-bar">
+              <span>
+                {inventory[selectedInvIndex]!.label}
+                {EDIBLE_ITEMS[inventory[selectedInvIndex]!.id]
+                  ? ` (+${EDIBLE_ITEMS[inventory[selectedInvIndex]!.id].energy} ⚡)`
+                  : ''}
+              </span>
+              {EDIBLE_ITEMS[inventory[selectedInvIndex]!.id] ? (
+                <button
+                  type="button"
+                  className="inventory-eat-btn"
+                  onClick={() => handleEatItem('inventory', selectedInvIndex)}
+                >
+                  🍽️ Ăn (+{EDIBLE_ITEMS[inventory[selectedInvIndex]!.id].energy} ⚡)
+                </button>
+              ) : (
+                <small style={{ color: '#8fa5cf' }}>Không thể ăn</small>
+              )}
+            </div>
+          )}
+
           <div className="inventory-hint">
-            💡 Kéo vật phẩm vào thanh công cụ để truy cập nhanh
+            💡 Kéo vật phẩm vào thanh công cụ hoặc nhấp để Ăn hồi phục thể lực
           </div>
 
           <button type="button" className="inventory-reset" onClick={resetInventory}>
             Reset kho đồ
           </button>
         </div>
+      )}
+
+      {/* Quick Eat Action pill if selected tool is edible */}
+      {selectedTool && EDIBLE_ITEMS[selectedTool] && (
+        <button
+          type="button"
+          className="toolbar-eat-pill"
+          onClick={handleEatSelectedTool}
+        >
+          🍽️ Ăn {ITEM_DEFINITIONS[selectedTool]?.label || selectedTool} (+{EDIBLE_ITEMS[selectedTool].energy} ⚡)
+        </button>
       )}
 
       {/* =====================================================
@@ -670,6 +1074,17 @@ export function GamePage() {
           onClick={() => setNftShopOpen(true)}
         >
           ✨
+        </button>
+
+        {/* GameFi Hub Button (Vault & Analytics) */}
+        <button
+          type="button"
+          className={`toolbar-menu${gameFiHubOpen ? ' toolbar-menu-active' : ''}`}
+          aria-label="GameFi Hub (H)"
+          title="GameFi Hub Dashboard & Lịch sử giao dịch (H)"
+          onClick={() => setGameFiHubOpen((prev) => !prev)}
+        >
+          📊
         </button>
 
         {/* Sync Coins to $PIXEL Claim Button */}

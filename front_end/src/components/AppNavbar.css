@@ -64,6 +64,17 @@
   white-space: nowrap;
 }
 
+.nav-action-btn.hub-btn {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #0369a1;
+}
+
+.nav-action-btn.hub-btn:hover {
+  background: #bae6fd;
+  transform: translateY(-1px);
+}
+
 .nav-action-btn.shop-btn {
   background: #fff3e0;
   border-color: #ffb74d;
@@ -84,6 +95,54 @@
 .nav-action-btn.claim-btn:hover {
   background: #e1bee7;
   transform: translateY(-1px);
+}
+
+/* ── Audio Controls Group ── */
+.audio-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+}
+
+.audio-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.audio-toggle-btn--active {
+  background: #e0f2fe;
+  border: 1.5px solid #0284c7;
+  color: #0369a1;
+}
+
+.audio-toggle-btn--active:hover {
+  background: #bae6fd;
+}
+
+.audio-toggle-btn--muted {
+  background: #f1f5f9;
+  border: 1.5px solid #94a3b8;
+  color: #64748b;
+  opacity: 0.75;
+}
+
+.audio-toggle-btn--muted:hover {
+  background: #e2e8f0;
+  opacity: 1;
+}
+
+.audio-text {
+  font-size: 0.72rem;
 }
 
 .auth-nav-btn {

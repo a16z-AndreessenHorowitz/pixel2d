@@ -193,3 +193,111 @@
   color: #728494;
   cursor: not-allowed;
 }
+
+/* ── Shop Navigation Tabs ── */
+.shop-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.shop-tab-btn {
+  flex: 1;
+  background: #182d3f;
+  border: 2px solid #2e597c;
+  color: #9ab4c7;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.shop-tab-btn:hover {
+  background: #23425d;
+  color: #fff;
+}
+
+.shop-tab-btn.active {
+  background: #2b7042;
+  border-color: #54a872;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(84, 168, 114, 0.3);
+}
+
+/* ── Sell Tab Styles ── */
+.shop-empty-sell {
+  text-align: center;
+  padding: 30px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  border: 1px dashed #2e597c;
+}
+
+.shop-empty-sell .empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+}
+
+.shop-empty-sell p {
+  color: #ffd700;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.shop-empty-sell small {
+  color: #8da4b8;
+  font-size: 0.78rem;
+}
+
+.sell-card {
+  border-color: #5d4037;
+  background: #1d1b18;
+}
+
+.sell-card:hover {
+  border-color: #8d6e63;
+}
+
+.sell-card .has-stock {
+  background: #4caf50;
+  color: #fff;
+}
+
+.sell-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sell-btn {
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.1s ease;
+}
+
+.sell-btn.sell-one {
+  background: #e65100;
+  border: 1px solid #ff9800;
+  color: #fff;
+}
+
+.sell-btn.sell-one:hover {
+  background: #f57c00;
+}
+
+.sell-btn.sell-all {
+  background: #f57f17;
+  border: 1px solid #ffeb3b;
+  color: #212121;
+}
+
+.sell-btn.sell-all:hover {
+  background: #fbc02d;
+}

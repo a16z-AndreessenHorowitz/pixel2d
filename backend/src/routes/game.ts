@@ -1,97 +1,100 @@
 import { Router, Response } from 'express'
-import { db, DEFAULT_INITIAL_INVENTORY, DEFAULT_INITIAL_TOOLBAR } from '../db/database.js'
+import { GameStateModel } from '../db/models.js'
+import { DEFAULT_INITIAL_INVENTORY, DEFAULT_INITIAL_TOOLBAR } from '../db/database.js'
 import { optionalAuth } from '../middleware/auth.js'
 import type { AuthenticatedRequest, GameState } from '../types/index.js'
 
 export const gameRouter = Router()
 
 // GET Game State by Wallet Address
-gameRouter.get('/state', optionalAuth, (req: AuthenticatedRequest, res: Response) => {
+gameRouter.get('/state', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   const address = (req.query.address as string) || req.user?.address
   if (!address) {
     return res.status(400).json({ success: false, error: 'Thiếu tham số address hoặc Bearer token' })
   }
 
   const normalizedAddr = address.toLowerCase()
-  let row = db.prepare('SELECT * FROM game_states WHERE wallet_address = ?').get(normalizedAddr) as any
 
-  if (!row) {
-    // Auto initialize if not exists
-    db.prepare(`
-      INSERT INTO game_states (wallet_address, coins, inventory_json, toolbar_json, plots_json, quests_json)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      normalizedAddr,
-      100,
-      JSON.stringify(DEFAULT_INITIAL_INVENTORY),
-      JSON.stringify(DEFAULT_INITIAL_TOOLBAR),
-      JSON.stringify([]),
-      JSON.stringify([]),
-    )
+  try {
+    let doc = await GameStateModel.findOne({ wallet_address: normalizedAddr })
 
-    return res.json({
-      success: true,
-      state: {
+    if (!doc) {
+      doc = await GameStateModel.create({
         wallet_address: normalizedAddr,
         coins: 100,
+        energy: 100,
+        max_energy: 100,
+        level: 1,
+        xp: 0,
         inventory: DEFAULT_INITIAL_INVENTORY,
         toolbar: DEFAULT_INITIAL_TOOLBAR,
         plots: [],
         quests: [],
-      },
-    })
-  }
+        updated_at: new Date(),
+      })
+    }
 
-  const state: GameState = {
-    wallet_address: normalizedAddr,
-    coins: row.coins,
-    inventory: JSON.parse(row.inventory_json || '[]'),
-    toolbar: JSON.parse(row.toolbar_json || '[]'),
-    plots: JSON.parse(row.plots_json || '[]'),
-    quests: JSON.parse(row.quests_json || '[]'),
-    updated_at: row.updated_at,
-  }
+    const state: GameState = {
+      wallet_address: normalizedAddr,
+      coins: doc.coins,
+      energy: doc.energy ?? 100,
+      max_energy: doc.max_energy ?? 100,
+      level: doc.level ?? 1,
+      xp: doc.xp ?? 0,
+      inventory: doc.inventory,
+      toolbar: doc.toolbar,
+      plots: doc.plots,
+      quests: doc.quests,
+      updated_at: doc.updated_at.toISOString(),
+    }
 
-  res.json({ success: true, state })
+    res.json({ success: true, state })
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message })
+  }
 })
 
 // POST Save / Synchronize Game State
-gameRouter.post('/save', optionalAuth, (req: AuthenticatedRequest, res: Response) => {
+gameRouter.post('/save', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   const address = req.body.address || req.user?.address
   if (!address) {
     return res.status(400).json({ success: false, error: 'Thiếu address hoặc Bearer token' })
   }
 
   const normalizedAddr = address.toLowerCase()
-  const { coins, inventory, toolbar, plots, quests } = req.body
+  const { coins, energy, max_energy, level, xp, inventory, toolbar, plots, quests } = req.body
 
-  const current = db.prepare('SELECT * FROM game_states WHERE wallet_address = ?').get(normalizedAddr) as any
+  try {
+    const updateData: any = { updated_at: new Date() }
+    if (typeof coins === 'number') updateData.coins = coins
+    if (typeof energy === 'number') updateData.energy = energy
+    if (typeof max_energy === 'number') updateData.max_energy = max_energy
+    if (typeof level === 'number') updateData.level = level
+    if (typeof xp === 'number') updateData.xp = xp
+    if (Array.isArray(inventory)) updateData.inventory = inventory
+    if (Array.isArray(toolbar)) updateData.toolbar = toolbar
+    if (Array.isArray(plots)) updateData.plots = plots
+    if (Array.isArray(quests)) updateData.quests = quests
 
-  const coinsVal = typeof coins === 'number' ? coins : current ? current.coins : 100
-  const invVal = inventory ? JSON.stringify(inventory) : current ? current.inventory_json : JSON.stringify(DEFAULT_INITIAL_INVENTORY)
-  const tbVal = toolbar ? JSON.stringify(toolbar) : current ? current.toolbar_json : JSON.stringify(DEFAULT_INITIAL_TOOLBAR)
-  const plotsVal = plots ? JSON.stringify(plots) : current ? current.plots_json : JSON.stringify([])
-  const questsVal = quests ? JSON.stringify(quests) : current ? current.quests_json : JSON.stringify([])
+    const doc = await GameStateModel.findOneAndUpdate(
+      { wallet_address: normalizedAddr },
+      { $set: updateData },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+    )
 
-  db.prepare(`
-    INSERT INTO game_states (wallet_address, coins, inventory_json, toolbar_json, plots_json, quests_json, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(wallet_address) DO UPDATE SET
-      coins = excluded.coins,
-      inventory_json = excluded.inventory_json,
-      toolbar_json = excluded.toolbar_json,
-      plots_json = excluded.plots_json,
-      quests_json = excluded.quests_json,
-      updated_at = CURRENT_TIMESTAMP
-  `).run(normalizedAddr, coinsVal, invVal, tbVal, plotsVal, questsVal)
-
-  res.json({
-    success: true,
-    message: 'Đã đồng bộ trạng thái game thành công',
-    state: {
-      wallet_address: normalizedAddr,
-      coins: coinsVal,
-      updated_at: new Date().toISOString(),
-    },
-  })
+    res.json({
+      success: true,
+      message: 'Đã đồng bộ trạng thái game thành công',
+      state: {
+        wallet_address: normalizedAddr,
+        coins: doc.coins,
+        energy: doc.energy,
+        level: doc.level,
+        xp: doc.xp,
+        updated_at: doc.updated_at.toISOString(),
+      },
+    })
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message })
+  }
 })

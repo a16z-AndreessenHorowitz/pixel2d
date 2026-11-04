@@ -1,86 +1,59 @@
-import Database from 'better-sqlite3'
-import fs from 'fs'
-import path from 'path'
+import mongoose from 'mongoose'
 import { CONFIG } from '../config/index.js'
-import type { GameState, ShopItem } from '../types/index.js'
+import { ShopItemModel } from './models.js'
+import type { ShopItem } from '../types/index.js'
 
-// Ensure data directory exists
-const dbDir = path.dirname(CONFIG.DATABASE_PATH)
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true })
+let memoryServerInstance: any = null
+
+export async function connectDatabase(): Promise<typeof mongoose> {
+  // If already connected, return
+  if (mongoose.connection.readyState === 1) {
+    return mongoose
+  }
+
+  // 1. Try connecting to configured MONGODB_URI (e.g. MongoDB Atlas or running local mongod)
+  try {
+    console.log(`[Database] Attempting connection to MongoDB at: ${CONFIG.MONGODB_URI}...`)
+    await mongoose.connect(CONFIG.MONGODB_URI, {
+      serverSelectionTimeoutMS: 2000,
+      connectTimeoutMS: 3000,
+    })
+    console.log(`🍃 Connected successfully to MongoDB: ${CONFIG.MONGODB_URI}`)
+    await seedShopItems()
+    return mongoose
+  } catch (err: any) {
+    console.warn(`[Database] Could not connect to external MongoDB: ${err.message}`)
+    console.log('[Database] Starting built-in MongoDB Memory Server fallback...')
+  }
+
+  // 2. Fallback to MongoMemoryServer (Zero-config, works everywhere on localhost)
+  try {
+    const { MongoMemoryServer } = await import('mongodb-memory-server')
+    memoryServerInstance = await MongoMemoryServer.create()
+    const memoryUri = memoryServerInstance.getUri()
+
+    await mongoose.connect(memoryUri)
+    console.log(`🍃 Connected successfully to MongoDB (Embedded Engine) at: ${memoryUri}`)
+    await seedShopItems()
+    return mongoose
+  } catch (memErr: any) {
+    console.error('[Database] Failed to initialize MongoDB embedded engine:', memErr)
+    throw memErr
+  }
 }
 
-export const db = new Database(CONFIG.DATABASE_PATH)
-db.pragma('journal_mode = WAL')
-
-export function initDatabase() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE,
-      password_hash TEXT,
-      wallet_address TEXT UNIQUE,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      last_login DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS game_states (
-      wallet_address TEXT PRIMARY KEY,
-      coins INTEGER NOT NULL DEFAULT 100,
-      inventory_json TEXT NOT NULL DEFAULT '[]',
-      toolbar_json TEXT NOT NULL DEFAULT '[]',
-      plots_json TEXT NOT NULL DEFAULT '[]',
-      quests_json TEXT NOT NULL DEFAULT '[]',
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS shop_items (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      category TEXT NOT NULL,
-      description TEXT NOT NULL,
-      price_coins INTEGER NOT NULL,
-      bundle_qty INTEGER NOT NULL DEFAULT 5,
-      image_url TEXT NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1
-    );
-
-    CREATE TABLE IF NOT EXISTS claims (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      wallet_address TEXT NOT NULL,
-      coin_amount INTEGER NOT NULL,
-      nonce INTEGER NOT NULL,
-      signature TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      wallet_address TEXT NOT NULL,
-      type TEXT NOT NULL,
-      amount TEXT NOT NULL,
-      tx_hash TEXT,
-      details TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS siwe_nonces (
-      wallet_address TEXT PRIMARY KEY,
-      nonce TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `)
-
-  seedShopItems()
+export async function disconnectDatabase(): Promise<void> {
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect()
+  }
+  if (memoryServerInstance) {
+    await memoryServerInstance.stop()
+    memoryServerInstance = null
+  }
 }
 
-function seedShopItems() {
-  const countRow = db.prepare('SELECT COUNT(*) as count FROM shop_items').get() as { count: number }
-  if (countRow.count > 0) return
-
-  const defaultShopItems: ShopItem[] = [
+export async function seedShopItems(): Promise<void> {
+  const defaultShopItems: Omit<ShopItem, 'is_active'>[] = [
     {
       id: 'corn-seed',
       name: 'Hạt giống Bắp',
@@ -90,7 +63,6 @@ function seedShopItems() {
       bundle_qty: 5,
       price_coins: 10,
       image_url: '/assets/tools/corn-seed.png',
-      is_active: 1,
     },
     {
       id: 'rice-seed',
@@ -101,7 +73,6 @@ function seedShopItems() {
       bundle_qty: 5,
       price_coins: 15,
       image_url: '/assets/tools/rice-seed.png',
-      is_active: 1,
     },
     {
       id: 'strawberry-seed',
@@ -112,7 +83,6 @@ function seedShopItems() {
       bundle_qty: 5,
       price_coins: 25,
       image_url: '/assets/tools/strawberry-seed.png',
-      is_active: 1,
     },
     {
       id: 'pumpkin-seed',
@@ -123,7 +93,6 @@ function seedShopItems() {
       bundle_qty: 5,
       price_coins: 35,
       image_url: '/assets/tools/pumpkin-seed.png',
-      is_active: 1,
     },
     {
       id: 'watermelon-seed',
@@ -134,23 +103,17 @@ function seedShopItems() {
       bundle_qty: 5,
       price_coins: 50,
       image_url: '/assets/tools/watermelon-seed.png',
-      is_active: 1,
     },
   ]
 
-  const insertStmt = db.prepare(`
-    INSERT INTO shop_items (id, name, type, category, description, price_coins, bundle_qty, image_url, is_active)
-    VALUES (@id, @name, @type, @category, @description, @price_coins, @bundle_qty, @image_url, @is_active)
-  `)
-
-  const insertMany = db.transaction((items: ShopItem[]) => {
-    for (const item of items) {
-      insertStmt.run(item)
-    }
-  })
-
-  insertMany(defaultShopItems)
-  console.log(`[Database] Seeded ${defaultShopItems.length} default shop items.`)
+  for (const item of defaultShopItems) {
+    await ShopItemModel.updateOne(
+      { id: item.id },
+      { $setOnInsert: { ...item, is_active: 1 } },
+      { upsert: true },
+    )
+  }
+  console.log(`[Database] Seeded default shop items into MongoDB.`)
 }
 
 export const DEFAULT_INITIAL_TOOLBAR = [

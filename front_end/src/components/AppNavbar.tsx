@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Badge, Container, Nav, Navbar } from 'react-bootstrap'
 import { NavLink } from 'react-router-dom'
 import type { AuthUser } from './AuthModal'
+import { soundEngine } from '../audio/SoundEngine'
 import './AppNavbar.css'
 
 export interface AppNavbarProps {
@@ -16,6 +18,7 @@ export interface AppNavbarProps {
   onDisconnect: () => void
   onOpenClaim: () => void
   onOpenNftShop: () => void
+  onOpenGameFiHub?: () => void
   onClaimFaucet: () => void
 }
 
@@ -31,8 +34,22 @@ export function AppNavbar({
   onDisconnect,
   onOpenClaim,
   onOpenNftShop,
+  onOpenGameFiHub,
   onClaimFaucet,
 }: AppNavbarProps) {
+  const [sfxEnabled, setSfxEnabled] = useState(() => soundEngine.getSfxEnabled())
+  const [bgmEnabled, setBgmEnabled] = useState(() => soundEngine.getBgmEnabled())
+
+  const handleToggleSfx = () => {
+    const next = soundEngine.toggleSfx()
+    setSfxEnabled(next)
+  }
+
+  const handleToggleBgm = () => {
+    const next = soundEngine.toggleBgm()
+    setBgmEnabled(next)
+  }
+
   const shortAddress = account
     ? `${account.slice(0, 6)}...${account.slice(-4)}`
     : null
@@ -55,6 +72,13 @@ export function AppNavbar({
             </Nav.Link>
             <button
               type="button"
+              className="nav-action-btn hub-btn"
+              onClick={onOpenGameFiHub}
+            >
+              📊 GameFi Hub
+            </button>
+            <button
+              type="button"
               className="nav-action-btn shop-btn"
               onClick={onOpenNftShop}
             >
@@ -67,6 +91,28 @@ export function AppNavbar({
             >
               🔄 Rút $PIXEL
             </button>
+
+            {/* Audio Controls (BGM & SFX) */}
+            <div className="audio-controls-group">
+              <button
+                type="button"
+                className={`audio-toggle-btn ${bgmEnabled ? 'audio-toggle-btn--active' : 'audio-toggle-btn--muted'}`}
+                onClick={handleToggleBgm}
+                title={bgmEnabled ? 'Tắt nhạc nền BGM' : 'Bật nhạc nền chiptune BGM'}
+              >
+                <span>{bgmEnabled ? '🎵' : '🔇'}</span>
+                <span className="audio-text">{bgmEnabled ? 'BGM' : 'BGM: Tắt'}</span>
+              </button>
+              <button
+                type="button"
+                className={`audio-toggle-btn ${sfxEnabled ? 'audio-toggle-btn--active' : 'audio-toggle-btn--muted'}`}
+                onClick={handleToggleSfx}
+                title={sfxEnabled ? 'Tắt hiệu ứng SFX' : 'Bật hiệu ứng SFX'}
+              >
+                <span>{sfxEnabled ? '🔊' : '🔇'}</span>
+                <span className="audio-text">{sfxEnabled ? 'SFX' : 'SFX: Tắt'}</span>
+              </button>
+            </div>
           </Nav>
 
           <div className="navbar-web3-actions">

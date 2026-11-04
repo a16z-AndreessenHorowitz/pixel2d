@@ -5,16 +5,28 @@ import './QuestPanel.css'
 interface QuestPanelProps {
   quests: Quest[]
   completedIds?: number[]
+  isLoggedIn?: boolean
+  onOpenAuth?: () => void
   onClaimReward?: (questId: number, rewardCoins: number) => void
 }
 
-export function QuestPanel({ quests, completedIds = [], onClaimReward }: QuestPanelProps) {
+export function QuestPanel({
+  quests,
+  completedIds = [],
+  isLoggedIn = false,
+  onOpenAuth,
+  onClaimReward,
+}: QuestPanelProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const total = quests.length
   const done = completedIds.length
 
   const handleClaim = (quest: Quest) => {
     if (completedIds.includes(quest.id)) return
+    if (!isLoggedIn) {
+      onOpenAuth?.()
+      return
+    }
     onClaimReward?.(quest.id, quest.rewardCoins)
   }
 
@@ -70,6 +82,25 @@ export function QuestPanel({ quests, completedIds = [], onClaimReward }: QuestPa
               </button>
             </div>
 
+            {!isLoggedIn && (
+              <div
+                className="quest-login-banner"
+                onClick={onOpenAuth}
+                role="button"
+                tabIndex={0}
+                aria-label="Đăng nhập để nhận thưởng"
+              >
+                <span className="quest-login-banner__icon">🔒</span>
+                <div className="quest-login-banner__text">
+                  <strong>Chưa đăng nhập tài khoản</strong>
+                  <p>Vui lòng đăng nhập để hoàn thành nhiệm vụ và nhận thưởng Coin!</p>
+                </div>
+                <button type="button" className="quest-login-banner__btn">
+                  Đăng nhập
+                </button>
+              </div>
+            )}
+
             <div className="quest-list">
               {quests.map((q) => {
                 const isCompleted = completedIds.includes(q.id)
@@ -87,6 +118,14 @@ export function QuestPanel({ quests, completedIds = [], onClaimReward }: QuestPa
                       <span className="quest-card__reward">+{q.rewardCoins} 🪙</span>
                       {isCompleted ? (
                         <span className="quest-status-badge">Đã nhận</span>
+                      ) : !isLoggedIn ? (
+                        <button
+                          type="button"
+                          className="quest-claim-btn quest-claim-btn--locked"
+                          onClick={() => onOpenAuth?.()}
+                        >
+                          🔒 Đăng nhập
+                        </button>
                       ) : (
                         <button
                           type="button"

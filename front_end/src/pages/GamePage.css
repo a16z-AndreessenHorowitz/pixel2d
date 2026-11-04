@@ -552,3 +552,129 @@
     display: none;
   }
 }
+
+/* =========================================================
+   Pillar 1: Level Up & Energy UI Effects
+   ========================================================= */
+
+.level-up-banner {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 3px solid #fef3c7;
+  border-radius: 12px;
+  padding: 12px 24px;
+  color: #1a1500;
+  font-family: monospace;
+  font-weight: 900;
+  font-size: 0.95rem;
+  box-shadow: 0 8px 30px rgba(245, 158, 11, 0.6), 0 0 15px rgba(255, 255, 255, 0.4);
+  z-index: 999;
+  animation: banner-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+  text-align: center;
+}
+
+@keyframes banner-pop {
+  0% { transform: translateX(-50%) scale(0.6); opacity: 0; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+.energy-alert-toast {
+  position: fixed;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.94);
+  border: 2px solid #ef4444;
+  border-radius: 10px;
+  padding: 10px 20px;
+  color: #fecaca;
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  z-index: 998;
+  animation: toast-fade 0.3s ease;
+  pointer-events: none;
+}
+
+.energy-alert-toast--success {
+  border-color: #10b981;
+  color: #a7f3d0;
+}
+
+@keyframes toast-fade {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Quick Eat Pill right above toolbar */
+.toolbar-eat-pill {
+  position: fixed;
+  bottom: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 2px solid #6ee7b7;
+  border-radius: 20px;
+  padding: 6px 16px;
+  color: #ffffff;
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.toolbar-eat-pill:hover {
+  transform: translateX(-50%) scale(1.06);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+/* Inventory Item Selection & Eating Bar */
+.inventory-slot-selected {
+  outline: 2px solid #f59e0b !important;
+  background: rgba(245, 158, 11, 0.2) !important;
+}
+
+.inventory-eat-bar {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inventory-eat-bar span {
+  font-size: 0.82rem;
+  color: #a7f3d0;
+  font-weight: 700;
+}
+
+.inventory-eat-btn {
+  background: #10b981;
+  border: 1px solid #34d399;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.inventory-eat-btn:hover {
+  background: #059669;
+}

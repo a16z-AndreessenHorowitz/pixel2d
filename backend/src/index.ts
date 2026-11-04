@@ -1,7 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import { CONFIG } from './config/index.js'
-import { initDatabase } from './db/database.js'
+import { connectDatabase } from './db/database.js'
 import { authRouter } from './routes/auth.js'
 import { gameRouter } from './routes/game.js'
 import { shopRouter } from './routes/shop.js'
@@ -27,9 +27,6 @@ app.use(
 
 app.use(express.json())
 
-// Initialize Database & Seed data
-initDatabase()
-
 // Routes
 app.use('/api/auth', authRouter)
 app.use('/api/game', gameRouter)
@@ -41,7 +38,7 @@ app.use('/api/transactions', transactionsRouter)
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
-    service: 'Pixel2D GameFi Backend API & Signer',
+    service: 'Pixel2D GameFi Backend API & Signer (MongoDB)',
     serverTime: new Date().toISOString(),
     signerAddress: CONFIG.SIGNER_ADDRESS,
     claimCap: CONFIG.CLAIM_CAP,
@@ -55,16 +52,22 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(500).json({ success: false, error: 'Internal Server Error: ' + (err.message || 'Unknown') })
 })
 
-// Start Server
+// Start Server after connecting to MongoDB
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(CONFIG.PORT, () => {
-    console.log(`====================================================`)
-    console.log(`🌾 Pixel2D GameFi Backend Server running on port ${CONFIG.PORT}`)
-    console.log(`🔑 ECDSA Signer Address: ${CONFIG.SIGNER_ADDRESS}`)
-    console.log(`🛡️  Claim Cap: ${CONFIG.CLAIM_CAP} Coins | Cooldown: ${CONFIG.CLAIM_COOLDOWN_SECONDS}s`)
-    console.log(`💾 Database: ${CONFIG.DATABASE_PATH}`)
-    console.log(`====================================================`)
-  })
+  connectDatabase()
+    .then(() => {
+      app.listen(CONFIG.PORT, () => {
+        console.log(`====================================================`)
+        console.log(`🌾 Pixel2D GameFi Backend Server running on port ${CONFIG.PORT}`)
+        console.log(`🔑 ECDSA Signer Address: ${CONFIG.SIGNER_ADDRESS}`)
+        console.log(`🛡️  Claim Cap: ${CONFIG.CLAIM_CAP} Coins | Cooldown: ${CONFIG.CLAIM_COOLDOWN_SECONDS}s`)
+        console.log(`🍃 Database: MongoDB`)
+        console.log(`====================================================`)
+      })
+    })
+    .catch((err) => {
+      console.error('Failed to connect to MongoDB and start server:', err)
+    })
 }
 
 export default app

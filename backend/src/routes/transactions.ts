@@ -1,33 +1,47 @@
 import { Router, Response } from 'express'
-import { db } from '../db/database.js'
+import { TransactionModel } from '../db/models.js'
 import { optionalAuth } from '../middleware/auth.js'
-import type { AuthenticatedRequest, TransactionRecord } from '../types/index.js'
+import type { AuthenticatedRequest } from '../types/index.js'
 
 export const transactionsRouter = Router()
 
 // 1. GET Transaction Logs
-transactionsRouter.get('/', optionalAuth, (req: AuthenticatedRequest, res: Response) => {
+transactionsRouter.get('/', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   const address = (req.query.address as string) || req.user?.address
   const limit = Math.min(Number(req.query.limit) || 20, 100)
   const offset = Number(req.query.offset) || 0
 
-  let query = 'SELECT * FROM transactions'
-  const params: any[] = []
-
+  const filter: any = {}
   if (address) {
-    query += ' WHERE wallet_address = ?'
-    params.push(address.toLowerCase())
+    filter.wallet_address = address.toLowerCase()
   }
 
-  query += ' ORDER BY id DESC LIMIT ? OFFSET ?'
-  params.push(limit, offset)
+  try {
+    const transactions = await TransactionModel.find(filter)
+      .sort({ created_at: -1 })
+      .skip(offset)
+      .limit(limit)
 
-  const transactions = db.prepare(query).all(...params) as TransactionRecord[]
-  res.json({ success: true, count: transactions.length, transactions })
+    res.json({
+      success: true,
+      count: transactions.length,
+      transactions: transactions.map((t) => ({
+        id: t._id.toString(),
+        wallet_address: t.wallet_address,
+        type: t.type,
+        amount: t.amount,
+        tx_hash: t.tx_hash,
+        details: t.details,
+        created_at: t.created_at.toISOString(),
+      })),
+    })
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message })
+  }
 })
 
 // 2. POST Log a New Transaction
-transactionsRouter.post('/log', optionalAuth, (req: AuthenticatedRequest, res: Response) => {
+transactionsRouter.post('/log', optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   const address = req.body.address || req.user?.address
   const { type, amount, txHash, details } = req.body
 
@@ -36,14 +50,23 @@ transactionsRouter.post('/log', optionalAuth, (req: AuthenticatedRequest, res: R
   }
 
   const normalizedAddr = address.toLowerCase()
-  const result = db.prepare(`
-    INSERT INTO transactions (wallet_address, type, amount, tx_hash, details, created_at)
-    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-  `).run(normalizedAddr, type, amount, txHash || null, details || null)
 
-  res.json({
-    success: true,
-    message: 'Đã lưu lịch sử giao dịch thành công',
-    id: result.lastInsertRowid,
-  })
+  try {
+    const record = await TransactionModel.create({
+      wallet_address: normalizedAddr,
+      type,
+      amount,
+      tx_hash: txHash || null,
+      details: details || null,
+      created_at: new Date(),
+    })
+
+    res.json({
+      success: true,
+      message: 'Đã lưu lịch sử giao dịch thành công',
+      id: record._id.toString(),
+    })
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message })
+  }
 })

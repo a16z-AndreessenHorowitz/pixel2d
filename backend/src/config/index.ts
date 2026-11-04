@@ -24,6 +24,7 @@ export const CONFIG = {
   CLAIM_CAP: Number(process.env.CLAIM_CAP) || 100,
   CLAIM_COOLDOWN_SECONDS: Number(process.env.CLAIM_COOLDOWN_SECONDS) || 300,
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/pixel2d',
   DATABASE_PATH: process.env.DATABASE_PATH
     ? path.resolve(process.env.DATABASE_PATH)
     : path.resolve(process.cwd(), 'data', 'pixel_farm.db'),

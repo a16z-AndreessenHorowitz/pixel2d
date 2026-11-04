@@ -271,3 +271,41 @@
   letter-spacing: 0.04em;
 }
 
+/* ── XP Row Styles ── */
+.stats-row--xp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-bar-track.xp-track {
+  border-color: #a8842c;
+  background: rgba(30, 25, 10, 0.7);
+}
+
+.stats-bar-fill.xp-fill {
+  background: linear-gradient(90deg, #f39c12, #f1c40f);
+  box-shadow: 0 0 6px rgba(241, 196, 15, 0.6);
+}
+
+/* ── Unauth Status Pill ── */
+.stats-unauth-pill {
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid #e74c3c;
+  color: #ff7675;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+  margin-top: 2px;
+}
+
+.stats-unauth-pill:hover {
+  background: rgba(231, 76, 60, 0.35);
+  color: #fff;
+  transform: scale(1.02);
+}
+

@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import type { CropDefinition, CropId } from '../data/crops'
 import { getCropById } from '../data/crops'
+import { soundEngine } from '../../audio/SoundEngine'
 
 /**
  * Trạng thái ô đất:
@@ -98,6 +99,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
   /** Xới đất bằng Cuốc (Hoe / Gold Hoe). Chuyển ô đất từ empty sang tilled. */
   till(isGold: boolean = false) {
     if (this.status !== 'empty') return
+    soundEngine.playTill()
     this.setStatus('tilled')
     this.animateBounce()
     this.animateTill()
@@ -114,6 +116,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     this.cropId = cropId
     const crop = getCropById(cropId)
     this.cropScale = (this.size / 44) * (crop.scale ?? 0.28)
+    soundEngine.playPlant()
     this.setStatus('planted')
     this.animateBounce()
     this.showFloatingText('🌱')
@@ -122,6 +125,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
   /** Tưới nước. Chỉ hoạt động khi đã gieo hạt (planted). */
   water() {
     if (this.status !== 'planted') return
+    soundEngine.playWater()
     this.setStatus('watered')
     this.animateBounce()
     this.showFloatingText('💧')
@@ -133,6 +137,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     if (this.status !== 'mature') return
     const crop = getCropById(this.cropId!)
 
+    soundEngine.playHarvest()
     this.showFloatingText(`+${crop.harvestCoins} 🪙`, '#ffd700')
     this.animatePop()
     this.onHarvestCallback?.(crop)
@@ -150,6 +155,27 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
   /** Xử lý click từ người chơi với tool đang chọn */
   handleTool(tool: string) {
+    const isActionValid =
+      (this.status === 'empty' && (tool === 'hoe' || tool === 'gold-hoe')) ||
+      (this.status === 'tilled' && tool.endsWith('-seed')) ||
+      (this.status === 'planted' && (tool === 'watering-can' || tool === 'gold-watering-can')) ||
+      (this.status === 'mature' && (tool === 'sickle' || tool === 'gold-sickle'))
+
+    if (isActionValid) {
+      const energyCost = tool.endsWith('-seed') ? 1 : 2
+      const energyEvent = new CustomEvent('farm-action-energy', {
+        detail: { cost: energyCost, action: 'farming' },
+        cancelable: true,
+      })
+      window.dispatchEvent(energyEvent)
+
+      if (energyEvent.defaultPrevented) {
+        this.shake()
+        this.showFloatingText('⚡ Kiệt sức! Hãy ăn nông sản!', '#ff6b6b')
+        return
+      }
+    }
+
     switch (this.status) {
       case 'empty':
         if (tool === 'hoe' || tool === 'gold-hoe') {

@@ -21,6 +21,10 @@ export interface InventorySlot {
 export interface GameState {
   wallet_address: string
   coins: number
+  energy?: number
+  max_energy?: number
+  level?: number
+  xp?: number
   inventory: (InventorySlot | null)[]
   toolbar: (InventorySlot | null)[]
   plots?: any[]
@@ -31,7 +35,7 @@ export interface GameState {
 export interface ShopItem {
   id: string
   name: string
-  type: 'seed' | 'tool' | 'fertilizer' | 'special'
+  type: 'seed' | 'tool' | 'fertilizer' | 'special' | 'crop'
   category: string
   description: string
   price_coins: number
@@ -41,9 +45,9 @@ export interface ShopItem {
 }
 
 export interface TransactionRecord {
-  id?: number
+  id?: number | string
   wallet_address: string
-  type: 'buy_seed' | 'claim_token' | 'faucet' | 'mint_nft' | 'quest_reward' | 'crop_harvest' | 'fishing_catch'
+  type: 'buy_seed' | 'sell_crop' | 'claim_token' | 'faucet' | 'mint_nft' | 'quest_reward' | 'crop_harvest' | 'fishing_catch'
   amount: string
   tx_hash?: string
   details?: string
@@ -51,7 +55,7 @@ export interface TransactionRecord {
 }
 
 export interface ClaimRecord {
-  id?: number
+  id?: number | string
   wallet_address: string
   coin_amount: number
   nonce: number

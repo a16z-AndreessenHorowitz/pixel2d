@@ -192,6 +192,22 @@ export const ITEM_DEFINITIONS: Record<
 }
 
 /*
+ * Thực phẩm có thể ăn để hồi phục Năng lượng (⚡)
+ */
+export const EDIBLE_ITEMS: Record<string, { energy: number; label: string }> = {
+  corn: { energy: 15, label: 'Bắp ngô (+15⚡)' },
+  rice: { energy: 12, label: 'Bó lúa (+12⚡)' },
+  strawberry: { energy: 10, label: 'Dâu tây (+10⚡)' },
+  pumpkin: { energy: 25, label: 'Bí ngô (+25⚡)' },
+  watermelon: { energy: 20, label: 'Dưa hấu (+20⚡)' },
+  carp: { energy: 18, label: 'Cá chép (+18⚡)' },
+  tilapia: { energy: 15, label: 'Cá rô phi (+15⚡)' },
+  catfish: { energy: 22, label: 'Cá trê (+22⚡)' },
+  salmon: { energy: 28, label: 'Cá hồi (+28⚡)' },
+  'golden-fish': { energy: 35, label: 'Cá vàng (+35⚡)' },
+}
+
+/*
  * Inventory mặc định ban đầu
  */
 export const DEFAULT_INVENTORY: InventorySlot[] = [

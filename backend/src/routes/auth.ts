@@ -3,7 +3,8 @@ import crypto from 'crypto'
 import { verifyMessage } from 'ethers'
 import jwt from 'jsonwebtoken'
 import { CONFIG } from '../config/index.js'
-import { db, DEFAULT_INITIAL_INVENTORY, DEFAULT_INITIAL_TOOLBAR } from '../db/database.js'
+import { UserModel, GameStateModel, SiweNonceModel } from '../db/models.js'
+import { DEFAULT_INITIAL_INVENTORY, DEFAULT_INITIAL_TOOLBAR } from '../db/database.js'
 import { requireAuth } from '../middleware/auth.js'
 import type { AuthenticatedRequest } from '../types/index.js'
 
@@ -14,7 +15,7 @@ function hashPassword(password: string): string {
 }
 
 // 1. GET Nonce for SIWE
-authRouter.get('/nonce', (req, res) => {
+authRouter.get('/nonce', async (req, res) => {
   const address = req.query.address as string
   if (!address) {
     return res.status(400).json({ success: false, error: 'Thiếu tham số address' })
@@ -23,17 +24,21 @@ authRouter.get('/nonce', (req, res) => {
   const nonce = `pixel2d-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
   const normalizedAddr = address.toLowerCase()
 
-  db.prepare(`
-    INSERT INTO siwe_nonces (wallet_address, nonce, created_at)
-    VALUES (?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(wallet_address) DO UPDATE SET nonce = excluded.nonce, created_at = CURRENT_TIMESTAMP
-  `).run(normalizedAddr, nonce)
+  try {
+    await SiweNonceModel.findOneAndUpdate(
+      { wallet_address: normalizedAddr },
+      { nonce, created_at: new Date() },
+      { upsert: true, returnDocument: 'after' },
+    )
 
-  res.json({ success: true, nonce })
+    res.json({ success: true, nonce })
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message })
+  }
 })
 
 // 2. POST SIWE Login with MetaMask Signature
-authRouter.post('/login-wallet', (req, res) => {
+authRouter.post('/login-wallet', async (req, res) => {
   const { address, signature, message } = req.body
   if (!address || !signature || !message) {
     return res.status(400).json({ success: false, error: 'Thiếu address, signature hoặc message' })
@@ -47,49 +52,38 @@ authRouter.post('/login-wallet', (req, res) => {
       return res.status(401).json({ success: false, error: 'Chữ ký ví không hợp lệ' })
     }
 
-    // Ensure User exists in users table
-    let user = db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(normalizedAddr) as any
+    // Ensure User exists in users collection
+    let user = await UserModel.findOne({ wallet_address: normalizedAddr })
     if (!user) {
+      const count = await UserModel.countDocuments()
       const defaultUsername = `Farmer_${normalizedAddr.slice(2, 8)}`
-      const result = db.prepare(`
-        INSERT INTO users (username, wallet_address, created_at, last_login)
-        VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      `).run(defaultUsername, normalizedAddr)
-      user = { id: result.lastInsertRowid, username: defaultUsername, wallet_address: normalizedAddr }
+      user = await UserModel.create({
+        id: count + 1,
+        username: defaultUsername,
+        wallet_address: normalizedAddr,
+        created_at: new Date(),
+        last_login: new Date(),
+      })
     } else {
-      db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE wallet_address = ?').run(normalizedAddr)
+      user.last_login = new Date()
+      await user.save()
     }
 
-    // Ensure GameState exists in game_states table
-    let gameState = db.prepare('SELECT * FROM game_states WHERE wallet_address = ?').get(normalizedAddr) as any
+    // Ensure GameState exists in game_states collection
+    let gameState = await GameStateModel.findOne({ wallet_address: normalizedAddr })
     if (!gameState) {
-      db.prepare(`
-        INSERT INTO game_states (wallet_address, coins, inventory_json, toolbar_json, plots_json, quests_json)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
-        normalizedAddr,
-        100,
-        JSON.stringify(DEFAULT_INITIAL_INVENTORY),
-        JSON.stringify(DEFAULT_INITIAL_TOOLBAR),
-        JSON.stringify([]),
-        JSON.stringify([]),
-      )
-      gameState = {
+      gameState = await GameStateModel.create({
         wallet_address: normalizedAddr,
         coins: 100,
+        energy: 100,
+        max_energy: 100,
+        level: 1,
+        xp: 0,
         inventory: DEFAULT_INITIAL_INVENTORY,
         toolbar: DEFAULT_INITIAL_TOOLBAR,
         plots: [],
         quests: [],
-      }
-    } else {
-      gameState = {
-        ...gameState,
-        inventory: JSON.parse(gameState.inventory_json || '[]'),
-        toolbar: JSON.parse(gameState.toolbar_json || '[]'),
-        plots: JSON.parse(gameState.plots_json || '[]'),
-        quests: JSON.parse(gameState.quests_json || '[]'),
-      }
+      })
     }
 
     // Issue JWT
@@ -109,6 +103,10 @@ authRouter.post('/login-wallet', (req, res) => {
       },
       gameState: {
         coins: gameState.coins,
+        energy: gameState.energy,
+        max_energy: gameState.max_energy,
+        level: gameState.level,
+        xp: gameState.xp,
         inventory: gameState.inventory,
         toolbar: gameState.toolbar,
         plots: gameState.plots,
@@ -122,7 +120,7 @@ authRouter.post('/login-wallet', (req, res) => {
 })
 
 // 3. POST Traditional Register
-authRouter.post('/register', (req, res) => {
+authRouter.post('/register', async (req, res) => {
   const { username, password, wallet_address } = req.body
   if (!username || !password) {
     return res.status(400).json({ success: false, error: 'Cần nhập username và password' })
@@ -132,23 +130,36 @@ authRouter.post('/register', (req, res) => {
   const passwordHash = hashPassword(password)
 
   try {
-    const result = db.prepare(`
-      INSERT INTO users (username, password_hash, wallet_address, created_at, last_login)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `).run(username, passwordHash, normalizedAddr)
+    const existing = await UserModel.findOne({
+      $or: [{ username }, { wallet_address: normalizedAddr }],
+    })
+    if (existing) {
+      return res.status(409).json({ success: false, error: 'Username hoặc Wallet Address đã tồn tại' })
+    }
+
+    const count = await UserModel.countDocuments()
+    const user = await UserModel.create({
+      id: count + 1,
+      username,
+      password_hash: passwordHash,
+      wallet_address: normalizedAddr,
+      created_at: new Date(),
+      last_login: new Date(),
+    })
 
     // Init game state
-    db.prepare(`
-      INSERT INTO game_states (wallet_address, coins, inventory_json, toolbar_json, plots_json, quests_json)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      normalizedAddr,
-      100,
-      JSON.stringify(DEFAULT_INITIAL_INVENTORY),
-      JSON.stringify(DEFAULT_INITIAL_TOOLBAR),
-      JSON.stringify([]),
-      JSON.stringify([]),
-    )
+    await GameStateModel.create({
+      wallet_address: normalizedAddr,
+      coins: 100,
+      energy: 100,
+      max_energy: 100,
+      level: 1,
+      xp: 0,
+      inventory: DEFAULT_INITIAL_INVENTORY,
+      toolbar: DEFAULT_INITIAL_TOOLBAR,
+      plots: [],
+      quests: [],
+    })
 
     const token = jwt.sign(
       { address: normalizedAddr, username, role: 'player' },
@@ -159,51 +170,70 @@ authRouter.post('/register', (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: result.lastInsertRowid, username, wallet_address: normalizedAddr },
+      user: { id: user.id, username, wallet_address: normalizedAddr },
     })
   } catch (err: any) {
-    if (err.message && err.message.includes('UNIQUE constraint failed')) {
-      return res.status(409).json({ success: false, error: 'Username hoặc Wallet Address đã tồn tại' })
-    }
     res.status(500).json({ success: false, error: err.message })
   }
 })
 
 // 4. POST Traditional Login
-authRouter.post('/login', (req, res) => {
+authRouter.post('/login', async (req, res) => {
   const { username, password } = req.body
   if (!username || !password) {
     return res.status(400).json({ success: false, error: 'Cần nhập username và password' })
   }
 
   const passwordHash = hashPassword(password)
-  const user = db.prepare('SELECT * FROM users WHERE username = ? AND password_hash = ?').get(username, passwordHash) as any
 
-  if (!user) {
-    return res.status(401).json({ success: false, error: 'Tên đăng nhập hoặc mật khẩu không đúng' })
+  try {
+    const user = await UserModel.findOne({ username, password_hash: passwordHash })
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Tên đăng nhập hoặc mật khẩu không đúng' })
+    }
+
+    user.last_login = new Date()
+    await user.save()
+
+    const token = jwt.sign(
+      { address: user.wallet_address || '', username: user.username, role: 'player' },
+      CONFIG.JWT_SECRET,
+      { expiresIn: '7d' },
+    )
+
+    res.json({
+      success: true,
+      token,
+      user: { id: user.id, username: user.username, wallet_address: user.wallet_address },
+    })
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message })
   }
-
-  db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id)
-
-  const token = jwt.sign(
-    { address: user.wallet_address, username: user.username, role: 'player' },
-    CONFIG.JWT_SECRET,
-    { expiresIn: '7d' },
-  )
-
-  res.json({
-    success: true,
-    token,
-    user: { id: user.id, username: user.username, wallet_address: user.wallet_address },
-  })
 })
 
 // 5. GET Current User Profile
-authRouter.get('/me', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const address = req.user?.address
-  const user = db.prepare('SELECT id, username, wallet_address, created_at, last_login FROM users WHERE wallet_address = ?').get(address)
-  if (!user) {
-    return res.status(404).json({ success: false, error: 'Không tìm thấy thông tin người dùng' })
+  if (!address) {
+    return res.status(401).json({ success: false, error: 'Chưa xác thực' })
   }
-  res.json({ success: true, user })
+
+  try {
+    const user = await UserModel.findOne({ wallet_address: address.toLowerCase() })
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy thông tin người dùng' })
+    }
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        wallet_address: user.wallet_address,
+        created_at: user.created_at,
+        last_login: user.last_login,
+      },
+    })
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message })
+  }
 })

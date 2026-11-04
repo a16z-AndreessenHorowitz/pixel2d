@@ -11,6 +11,7 @@ import {
   FISH_CATCH_WEIGHTS,
 } from './fishingData'
 import { FishingPrompt } from './FishingPrompt'
+import { soundEngine } from '../../audio/SoundEngine'
 
 export class FishingSystem {
   private readonly scene: Phaser.Scene
@@ -169,8 +170,19 @@ export class FishingSystem {
         return
       }
 
+      const energyEvent = new CustomEvent('farm-action-energy', {
+        detail: { cost: 3, action: 'fishing' },
+        cancelable: true,
+      })
+      window.dispatchEvent(energyEvent)
+
+      if (energyEvent.defaultPrevented) {
+        return
+      }
+
       this.currentSpot = spot
       this.state = 'casting'
+      soundEngine.playFishCast()
 
       this.showRod('rod-cast')
 
@@ -214,6 +226,7 @@ export class FishingSystem {
 
             // WAITING → BITE
             this.state = 'bite'
+            soundEngine.playFishBite()
 
             console.log(
               '[Fishing] Fish bit!',
@@ -278,6 +291,7 @@ export class FishingSystem {
       return
     }
 
+    soundEngine.playFishCatch()
     const fish = this.currentFish
 
     console.log(

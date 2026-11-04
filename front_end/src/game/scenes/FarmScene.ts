@@ -3,6 +3,7 @@ import { FarmPlot } from '../objects/FarmPlot'
 import { Player } from '../objects/Player'
 import { crops } from '../data/crops'
 import { FishingSystem } from '../fishing/fishingSystem'
+import { NPC } from '../objects/NPC'
 
 
 // Total map dimensions
@@ -34,6 +35,7 @@ export class FarmScene extends Phaser.Scene {
   private fishingSystem?: FishingSystem
   private chickens: RoamingAnimal[] = []
   private cows: RoamingAnimal[] = []
+  private npcs: NPC[] = []
   private isOverview = false
   private readonly defaultZoom = 1.85
   private savedPlayerPos = { x: dividerCenterX, y: 680 }
@@ -88,6 +90,16 @@ export class FarmScene extends Phaser.Scene {
       frameHeight: 32,
     })
     this.load.spritesheet('cow', '/assets/animals/male-cow-brown.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    })
+
+    // ── NPCs (Barney & Hazel) ──
+    this.load.spritesheet('npc-barney', '/assets/bloomseed/characters/idle-down.png', {
+      frameWidth: 48,
+      frameHeight: 48,
+    })
+    this.load.spritesheet('npc-hazel', '/assets/player/idle.png', {
       frameWidth: 32,
       frameHeight: 32,
     })
@@ -176,6 +188,34 @@ export class FarmScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12)
     this.fishingSystem = new FishingSystem(this, this.player)
 
+    // 6. Spawn Interactive NPCs (Pixels.xyz style)
+    const barney = new NPC(this, {
+      id: 'barney',
+      name: '👨‍🌾 Barney',
+      role: 'Hướng dẫn viên',
+      x: 1080,
+      y: 640,
+      texture: 'npc-barney',
+      frame: 0,
+      scale: 1.5,
+      actionPrompt: '[E] Trò chuyện',
+    })
+
+    const hazel = new NPC(this, {
+      id: 'hazel',
+      name: '👩‍🌾 Hazel',
+      role: 'Chủ Tạp Hóa',
+      x: 1620,
+      y: 440,
+      texture: 'npc-hazel',
+      frame: 0,
+      scale: 1.7,
+      tint: 0xffe4b5,
+      actionPrompt: '[E] Mua / Bán',
+    })
+
+    this.npcs.push(barney, hazel)
+
     // Lắng nghe buff từ Web3 (NFT Buff Bridge)
     const onBuffUpdated = (e: Event) => {
       const customEvent = e as CustomEvent<{
@@ -257,6 +297,13 @@ export class FarmScene extends Phaser.Scene {
   update() {
     this.player?.update()
     this.fishingSystem?.update()
+    if (this.player?.sprite) {
+      const px = this.player.sprite.x
+      const py = this.player.sprite.y
+      for (const npc of this.npcs) {
+        npc.updateProximity(px, py)
+      }
+    }
   }
 
   private setMapOverview(overview: boolean) {

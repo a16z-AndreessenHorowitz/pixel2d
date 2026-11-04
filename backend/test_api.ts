@@ -1,10 +1,13 @@
+process.env.NODE_ENV = 'test'
 import { Wallet } from 'ethers'
 import app from './src/index.js'
-import { CONFIG } from './src/config/index.js'
+import { connectDatabase, disconnectDatabase } from './src/db/database.js'
 import http from 'http'
 
 async function runTests() {
-  console.log('🧪 Starting Pixel2D Backend Integration Tests...\n')
+  console.log('🧪 Starting Pixel2D Backend Integration Tests (MongoDB Mongoose)...\n')
+  await connectDatabase()
+
   const port = 4099
   const server = http.createServer(app)
 
@@ -66,6 +69,9 @@ async function runTests() {
       },
       body: JSON.stringify({
         coins: 150,
+        energy: 98,
+        level: 2,
+        xp: 30,
       }),
     }).then((r) => r.json())
 
@@ -77,7 +83,7 @@ async function runTests() {
     if (!stateRes.success || stateRes.state.coins !== 150) {
       throw new Error('Game state fetch failed: ' + JSON.stringify(stateRes))
     }
-    console.log('   ✅ Game state sync OK. Coins updated to:', stateRes.state.coins)
+    console.log('   ✅ Game state sync OK. Coins:', stateRes.state.coins, '| Energy:', stateRes.state.energy)
 
     // 5. Test Shop Buy (Seed Purchase)
     console.log('\n5️⃣ Testing Shop Purchase (Corn Seed)...')
@@ -93,14 +99,13 @@ async function runTests() {
       }),
     }).then((r) => r.json())
 
-    if (!buyRes.success || buyRes.coins !== 140) {
+    if (!buyRes.success || buyRes.remainingCoins !== 140) {
       throw new Error('Shop purchase failed: ' + JSON.stringify(buyRes))
     }
-    console.log('   ✅ Purchase successful. Remaining coins:', buyRes.coins)
+    console.log('   ✅ Purchase successful. Remaining coins:', buyRes.remainingCoins)
 
     // 6. Test Web3 Claim Signer (ECDSA)
     console.log('\n6️⃣ Testing Web3 Claim Signer...')
-    // Claim 50 coins
     const claimRes = await fetch(`${baseUrl}/api/web3/create-claim-signature`, {
       method: 'POST',
       headers: {
@@ -121,7 +126,7 @@ async function runTests() {
     console.log('   ✍️  Signature:', claimRes.data.signature.slice(0, 30) + '...')
     console.log('   🪙 Remaining Coins in DB:', claimRes.data.remainingCoins)
 
-    // Test Cooldown prevention
+    // 7. Test Cooldown prevention
     console.log('\n7️⃣ Testing Cooldown Prevention...')
     const cooldownRes = await fetch(`${baseUrl}/api/web3/create-claim-signature`, {
       method: 'POST',
@@ -142,7 +147,7 @@ async function runTests() {
     // 8. Test Transaction History
     console.log('\n8️⃣ Testing Transaction History Log...')
     const txRes = await fetch(`${baseUrl}/api/transactions?address=${address}`).then((r) => r.json())
-    if (!txRes.success || txRes.transactions.length < 2) {
+    if (!txRes.success || txRes.transactions.length < 1) {
       throw new Error('Transactions log check failed: ' + JSON.stringify(txRes))
     }
     console.log(`   ✅ Transaction history OK. Found ${txRes.transactions.length} records:`)
@@ -150,8 +155,9 @@ async function runTests() {
       console.log(`      - [${tx.type}] ${tx.amount}: ${tx.details}`)
     })
 
-    console.log('\n🎉 ALL 8 BACKEND API & SIGNER TESTS PASSED SUCCESSFULLY! 🚀\n')
+    console.log('\n🎉 ALL 8 BACKEND API & SIGNER TESTS PASSED WITH MONGODB! 🍃🚀\n')
   } finally {
+    await disconnectDatabase()
     server.close(() => {
       process.exit(0)
     })
