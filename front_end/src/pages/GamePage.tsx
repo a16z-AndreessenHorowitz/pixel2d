@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { GameCanvas } from '../components/GameCanvas'
-import { StatsPanel } from '../components/StatsPanel'
-import { QuestPanel } from '../components/QuestPanel'
+import { TopLeftHUD } from '../components/TopLeftHUD'
 import { ShopModal, type ShopItem } from '../components/ShopModal'
-import { AppNavbar } from '../components/AppNavbar'
+import { TopRightHUD } from '../components/TopRightHUD'
 import { ClaimTokenModal } from '../components/ClaimTokenModal'
 import { NftShopModal } from '../components/NftShopModal'
 import { AuthModal, type AuthUser } from '../components/AuthModal'
@@ -75,7 +74,19 @@ export function GamePage() {
     mintNft,
     claimFarmingReward,
     refreshBalances,
+    error: web3Error,
   } = useWeb3()
+
+  useEffect(() => {
+    if (web3Error) {
+      const showT = setTimeout(() => setEnergyAlert({
+        message: web3Error,
+        type: 'error',
+      }), 10)
+      const t = setTimeout(() => setEnergyAlert(null), 4500)
+      return () => { clearTimeout(showT); clearTimeout(t); }
+    }
+  }, [web3Error])
 
   const [inventory, setInventory] = useState<InventorySlot[]>(() => {
     return loadInventory(account || undefined).inventory
@@ -803,24 +814,6 @@ export function GamePage() {
 
   return (
     <section className="game-page" aria-label="Pixel Farm game">
-      {/* Top Web3 & Game Navigation Bar */}
-      <AppNavbar
-        coins={coins}
-        account={account}
-        pixelBalance={pixelBalance}
-        ethBalance={ethBalance}
-        isConnecting={isConnecting}
-        faucetLoading={faucetLoading}
-        currentUser={currentUser}
-        onOpenAuth={() => setAuthModalOpen(true)}
-        onConnect={connectWallet}
-        onDisconnect={disconnect}
-        onOpenClaim={() => setClaimModalOpen(true)}
-        onOpenNftShop={() => setNftShopOpen(true)}
-        onOpenGameFiHub={() => setGameFiHubOpen(true)}
-        onClaimFaucet={handleClaimFaucet}
-      />
-
       <GameCanvas />
 
       {/* Level Up & Energy Alerts */}
@@ -837,24 +830,35 @@ export function GamePage() {
       )}
 
       {/* Left panel */}
-      <StatsPanel
+      <TopLeftHUD
         energy={energy}
         maxEnergy={maxEnergy}
         coins={coins}
-        gems={level}
         level={level}
         xp={xp}
         isLoggedIn={Boolean(currentUser)}
         onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenGameFiHub={() => setGameFiHubOpen(true)}
+        onOpenNftShop={() => setNftShopOpen(true)}
+        onOpenClaim={() => setClaimModalOpen(true)}
+        onOpenShop={() => setShopOpen(true)}
       />
 
-      {/* Right panel */}
-      <QuestPanel
-        quests={quests}
-        completedIds={completedQuestIds}
-        isLoggedIn={Boolean(currentUser)}
+      {/* Right panel - TopRightHUD (Web3, Audio, SIWE & Quests) */}
+      <TopRightHUD
+        account={account}
+        pixelBalance={pixelBalance}
+        ethBalance={ethBalance}
+        isConnecting={isConnecting}
+        faucetLoading={faucetLoading}
+        currentUser={currentUser}
         onOpenAuth={() => setAuthModalOpen(true)}
-        onClaimReward={handleClaimQuest}
+        onConnect={connectWallet}
+        onDisconnect={disconnect}
+        onClaimFaucet={handleClaimFaucet}
+        quests={quests}
+        completedQuestIds={completedQuestIds}
+        onClaimQuest={handleClaimQuest}
       />
 
       {/* Seed & Item Shop Modal */}

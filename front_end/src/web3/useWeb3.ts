@@ -18,6 +18,24 @@ export interface Web3State {
   error: string | null
 }
 
+/**
+ * Helper tìm provider MetaMask chính xác (kể cả khi cài đồng thời Phantom, Coinbase, OKX...)
+ */
+export function getMetaMaskProvider(): any {
+  if (typeof window === 'undefined') return null
+  const eth = (window as any).ethereum
+  if (!eth) return null
+
+  // Hỗ trợ trường hợp có nhiều ví extension cùng cài đặt (EIP-5749 / EIP-6963)
+  if (Array.isArray(eth.providers) && eth.providers.length > 0) {
+    const mm = eth.providers.find((p: any) => p.isMetaMask)
+    if (mm) return mm
+    return eth.providers[0]
+  }
+
+  return eth
+}
+
 export function useWeb3() {
   const [account, setAccount] = useState<string | null>(() => {
     try {
@@ -58,10 +76,11 @@ export function useWeb3() {
 
   // Refresh balances & NFT state
   const refreshBalances = useCallback(async () => {
-    if (!account || !window.ethereum) return
+    const eth = getMetaMaskProvider()
+    if (!account || !eth) return
 
     try {
-      const provider = new BrowserProvider(window.ethereum as any)
+      const provider = new BrowserProvider(eth)
       const currentNetwork = await provider.getNetwork()
       setChainId(Number(currentNetwork.chainId))
 
@@ -100,11 +119,12 @@ export function useWeb3() {
 
   // Switch network helper
   const switchNetwork = useCallback(async (targetChainId: number = CHAIN_CONFIG.chainId) => {
-    if (!window.ethereum) return
+    const eth = getMetaMaskProvider()
+    if (!eth) return
     const hexChainId = '0x' + targetChainId.toString(16)
 
     try {
-      await (window.ethereum as any).request({
+      await eth.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: hexChainId }],
       })
@@ -112,7 +132,7 @@ export function useWeb3() {
       // 4902: Unrecognized chain, prompt to add
       if (switchError.code === 4902) {
         if (targetChainId === 31337) {
-          await (window.ethereum as any).request({
+          await eth.request({
             method: 'wallet_addEthereumChain',
             params: [
               {
@@ -124,7 +144,7 @@ export function useWeb3() {
             ],
           })
         } else if (targetChainId === 80002) {
-          await (window.ethereum as any).request({
+          await eth.request({
             method: 'wallet_addEthereumChain',
             params: [
               {
@@ -144,9 +164,12 @@ export function useWeb3() {
   }, [])
 
   // Connect Wallet
-  const connectWallet = useCallback(async () => {
-    if (!window.ethereum) {
-      setError('Vui lòng cài đặt ví MetaMask để kết nối!')
+  const connectWallet = useCallback(async (): Promise<string | null> => {
+    const eth = getMetaMaskProvider()
+    if (!eth) {
+      const msg = 'Không tìm thấy tiện ích ví MetaMask! Vui lòng cài đặt extension MetaMask hoặc kiểm tra xem bạn có đang ở tab ẩn danh (Incognito) hay không.'
+      setError(msg)
+      alert(msg)
       return null
     }
 
@@ -154,14 +177,18 @@ export function useWeb3() {
     setError(null)
 
     try {
-      const provider = new BrowserProvider(window.ethereum as any)
-      const accounts = await provider.send('eth_requestAccounts', [])
+      // Gọi trực tiếp theo chuẩn EIP-1193 để đảm bảo trình duyệt kích hoạt extension popup
+      const accounts = (await eth.request({
+        method: 'eth_requestAccounts',
+      })) as string[]
+
       if (!accounts || accounts.length === 0) {
         throw new Error('Không tìm thấy tài khoản MetaMask nào')
       }
 
       const selectedAddress = accounts[0].toLowerCase()
       setAccount(selectedAddress)
+
       try {
         localStorage.setItem('pixel_wallet_address', selectedAddress)
         localStorage.removeItem('pixel_wallet_disconnected')
@@ -169,13 +196,23 @@ export function useWeb3() {
         // ignore storage errors
       }
 
+      const provider = new BrowserProvider(eth)
       const network = await provider.getNetwork()
       setChainId(Number(network.chainId))
 
       return selectedAddress
     } catch (err: any) {
       console.error('Wallet connection error:', err)
-      setError(err?.message || 'Lỗi kết nối ví MetaMask')
+
+      let friendlyMsg = err?.message || 'Lỗi kết nối ví MetaMask'
+      if (err?.code === -32002) {
+        friendlyMsg = 'Yêu cầu kết nối ví MetaMask đang chờ xử lý! Vui lòng bấm vào icon con Cáo 🦊 của MetaMask trên thanh tiện ích trình duyệt (hoặc biểu tượng mảnh ghép 🧩) để mở khóa và bấm Tiếp theo/Kết nối.'
+      } else if (err?.code === 4001) {
+        friendlyMsg = 'Bạn đã hủy yêu cầu kết nối ví MetaMask.'
+      }
+
+      setError(friendlyMsg)
+      alert(friendlyMsg)
       return null
     } finally {
       setIsConnecting(false)
@@ -199,8 +236,9 @@ export function useWeb3() {
 
   // Claim Faucet (100 $PIXEL)
   const claimFaucet = useCallback(async () => {
-    if (!account || !window.ethereum) throw new Error('Chưa kết nối ví')
-    const provider = new BrowserProvider(window.ethereum as any)
+    const eth = getMetaMaskProvider()
+    if (!account || !eth) throw new Error('Chưa kết nối ví')
+    const provider = new BrowserProvider(eth)
     const signer = await provider.getSigner()
     const tokenContract = new Contract(
       CONTRACT_ADDRESSES.PIXEL_TOKEN,
@@ -216,8 +254,9 @@ export function useWeb3() {
   // 1-Click Mint NFT
   const mintNft = useCallback(
     async (itemType: number) => {
-      if (!account || !window.ethereum) throw new Error('Chưa kết nối ví')
-      const provider = new BrowserProvider(window.ethereum as any)
+      const eth = getMetaMaskProvider()
+      if (!account || !eth) throw new Error('Chưa kết nối ví')
+      const provider = new BrowserProvider(eth)
       const signer = await provider.getSigner()
       const nftContract = new Contract(
         CONTRACT_ADDRESSES.FARM_ITEM_NFT,
@@ -242,8 +281,9 @@ export function useWeb3() {
       deadline: number,
       signature: string,
     ) => {
-      if (!account || !window.ethereum) throw new Error('Chưa kết nối ví')
-      const provider = new BrowserProvider(window.ethereum as any)
+      const eth = getMetaMaskProvider()
+      if (!account || !eth) throw new Error('Chưa kết nối ví')
+      const provider = new BrowserProvider(eth)
       const signer = await provider.getSigner()
       const tokenContract = new Contract(
         CONTRACT_ADDRESSES.PIXEL_TOKEN,
@@ -275,14 +315,15 @@ export function useWeb3() {
 
   // Auto-connect check on page reload (F5) via silent eth_accounts
   useEffect(() => {
-    if (!window.ethereum) return
+    const eth = getMetaMaskProvider()
+    if (!eth) return
 
     const checkAuthorizedAccount = async () => {
       try {
         const wasDisconnected = localStorage.getItem('pixel_wallet_disconnected') === 'true'
         if (wasDisconnected) return
 
-        const provider = new BrowserProvider(window.ethereum as any)
+        const provider = new BrowserProvider(eth)
         const accounts: string[] = await provider.send('eth_accounts', [])
         if (accounts && accounts.length > 0) {
           const active = accounts[0].toLowerCase()
@@ -305,7 +346,8 @@ export function useWeb3() {
 
   // Listen to MetaMask account / chain events
   useEffect(() => {
-    if (!window.ethereum) return
+    const eth = getMetaMaskProvider()
+    if (!eth || !eth.on) return
 
     const handleAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
@@ -326,12 +368,12 @@ export function useWeb3() {
       window.location.reload()
     }
 
-    ;(window.ethereum as any).on('accountsChanged', handleAccountsChanged)
-    ;(window.ethereum as any).on('chainChanged', handleChainChanged)
+    eth.on('accountsChanged', handleAccountsChanged)
+    eth.on('chainChanged', handleChainChanged)
 
     return () => {
-      ;(window.ethereum as any).removeListener?.('accountsChanged', handleAccountsChanged)
-      ;(window.ethereum as any).removeListener?.('chainChanged', handleChainChanged)
+      eth.removeListener?.('accountsChanged', handleAccountsChanged)
+      eth.removeListener?.('chainChanged', handleChainChanged)
     }
   }, [disconnect])
 
