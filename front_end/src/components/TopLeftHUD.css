@@ -1,0 +1,315 @@
+/* ════════════════════════════════════════════════════════════
+   TopLeftHUD.css – Radial Arc Layout & Pixel-art Game HUD
+   ════════════════════════════════════════════════════════════ */
+
+.top-left-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 350px;
+  height: 350px;
+  pointer-events: none; /* Không bắt chuột, xuyên thấu xuống Phaser Canvas */
+  z-index: 40;
+  user-select: none;
+}
+
+/* Ghi đè StatsPanel để bám sát mép trên cùng (top: 0) */
+.top-left-hud .stats-panel {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  pointer-events: none;
+}
+
+/* Ẩn nút ghim vị trí đơn độc cũ trong StatsPanel vì đã được đưa vào vòng cung bán nguyệt */
+.top-left-hud .stats-location-btn {
+  display: none !important;
+}
+
+/* ── Container chứa các nút tỏa hình cánh cung ── */
+.radial-arc-menu {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── Nút tròn Radial Icon Button ── */
+.radial-arc-btn {
+  position: absolute;
+  pointer-events: auto; /* Bắt click chuột */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: 3px solid #142a18;
+  cursor: pointer;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease,
+    filter 0.2s ease,
+    border-color 0.2s ease;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.45),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.4);
+  outline: none;
+}
+
+/* Hiệu ứng nổi bồng bềnh và phóng to khi rê chuột */
+.radial-arc-btn:hover {
+  transform: scale(1.18);
+  z-index: 50;
+  filter: brightness(1.15) drop-shadow(0 0 10px rgba(80, 240, 120, 0.6));
+}
+
+.radial-arc-btn:active {
+  transform: scale(0.92);
+}
+
+/* Vòng sáng phản quang bên trong */
+.radial-arc-btn__ring {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+/* Icon trung tâm */
+.radial-arc-btn__icon {
+  font-size: 1.2rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.8));
+  pointer-events: none;
+}
+
+/* ── Các Theme màu sắc rực rỡ theo từng tính năng ── */
+
+/* Theme Green (Nông trại) */
+.radial-arc-btn--green {
+  border-color: #103816;
+  background: radial-gradient(circle at 35% 30%, #46cf67 0%, #259e41 55%, #135d23 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.45),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(40, 180, 70, 0.3);
+}
+.radial-arc-btn--green:hover {
+  border-color: #7cf395;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.7),
+    0 0 16px rgba(80, 240, 120, 0.85),
+    0 6px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Theme Purple (GameFi Hub) */
+.radial-arc-btn--purple {
+  border-color: #2a1147;
+  background: radial-gradient(circle at 35% 30%, #a855f7 0%, #7c3aed 55%, #4c1d95 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.45),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(147, 51, 234, 0.3);
+}
+.radial-arc-btn--purple:hover {
+  border-color: #d8b4fe;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.7),
+    0 0 16px rgba(168, 85, 247, 0.85),
+    0 6px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Theme Amber (NFT Shop / Buff) */
+.radial-arc-btn--amber {
+  border-color: #452405;
+  background: radial-gradient(circle at 35% 30%, #fbbf24 0%, #f59e0b 55%, #b45309 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.55),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(245, 158, 11, 0.35);
+}
+.radial-arc-btn--amber:hover {
+  border-color: #fde68a;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.75),
+    0 0 16px rgba(251, 191, 36, 0.9),
+    0 6px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Theme Cyan (Rút Token) */
+.radial-arc-btn--cyan {
+  border-color: #063945;
+  background: radial-gradient(circle at 35% 30%, #22d3ee 0%, #06b6d4 55%, #0e7490 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.5),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(6, 182, 212, 0.35);
+}
+.radial-arc-btn--cyan:hover {
+  border-color: #a5f3fc;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.75),
+    0 0 16px rgba(34, 211, 238, 0.9),
+    0 6px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Theme Blue (Bản đồ / Overview) */
+.radial-arc-btn--blue {
+  border-color: #0d2b52;
+  background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 55%, #0369a1 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.45),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(2, 132, 199, 0.3);
+}
+.radial-arc-btn--blue:hover {
+  border-color: #bae6fd;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.7),
+    0 0 16px rgba(56, 189, 248, 0.85),
+    0 6px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Theme Emerald (Tiệm hạt giống) */
+.radial-arc-btn--emerald {
+  border-color: #06402b;
+  background: radial-gradient(circle at 35% 30%, #34d399 0%, #059669 55%, #047857 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.5),
+    inset 0 -3px 3px rgba(0, 0, 0, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.55);
+}
+.radial-arc-btn--emerald:hover {
+  border-color: #a7f3d0;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.75),
+    0 0 16px rgba(52, 211, 153, 0.9);
+}
+
+/* ── Trạng thái Active (Đang kích hoạt / Pulse Glow) ── */
+.radial-arc-btn--active {
+  border-color: #fde047 !important;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.8),
+    0 0 16px rgba(253, 224, 71, 0.9),
+    0 4px 10px rgba(0, 0, 0, 0.6) !important;
+  animation: radial-pulse 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes radial-pulse {
+  0% {
+    box-shadow:
+      inset 0 2px 2px rgba(255, 255, 255, 0.6),
+      0 0 8px rgba(253, 224, 71, 0.6),
+      0 3px 6px rgba(0, 0, 0, 0.5);
+  }
+  100% {
+    box-shadow:
+      inset 0 2px 3px rgba(255, 255, 255, 0.85),
+      0 0 20px rgba(253, 224, 71, 1),
+      0 6px 14px rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* ── Badge số lượng / thông báo ── */
+.radial-arc-btn__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 10px;
+  border: 1.5px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* ── Tooltip Pixel-art nổi khi hover ── */
+.radial-tooltip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: rgba(7, 18, 12, 0.95);
+  border: 1.5px solid #2e753d;
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-width: 140px;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  text-align: left;
+}
+
+.radial-arc-btn:hover .radial-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+.radial-tooltip__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.radial-tooltip__title {
+  color: #f0fdf4;
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.radial-tooltip__key {
+  color: #fde047;
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 700;
+  background: rgba(253, 224, 71, 0.15);
+  border: 1px solid rgba(253, 224, 71, 0.4);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.radial-tooltip__sub {
+  display: block;
+  color: #86efac;
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* ── Mũi tên tooltip chỉ về phía icon ── */
+.radial-tooltip::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent rgba(7, 18, 12, 0.95) transparent transparent;
+}

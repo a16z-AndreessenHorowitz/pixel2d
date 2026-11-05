@@ -1,0 +1,339 @@
+/* ════════════════════════════════════════════════════════════
+   TopRightHUD.css – System & Web3 Financial Controls (Top Right)
+   ════════════════════════════════════════════════════════════ */
+
+.top-right-hud {
+  position: fixed;
+  top: 0;
+  right: 0;
+  pointer-events: none; /* Cho phép click xuyên thấu xuống Phaser Canvas */
+  z-index: 40;
+  user-select: none;
+}
+
+/* Đưa QuestPanel bám sát mép trên cùng (top: 0) thay vì bị đẩy xuống top: 54px */
+.top-right-hud .quest-panel {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  pointer-events: none;
+}
+
+/* ── Cụm các nút icon tròn hệ thống & Web3 ── */
+.top-right-hud__cluster {
+  position: absolute;
+  top: 14px;
+  right: 195px; /* Nằm ngay sát bên trái góc phần tư QuestPanel 190px */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* ── Nút icon tròn hệ thống (BGM, SFX, Tài khoản) ── */
+.hud-round-btn {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  pointer-events: auto; /* Bắt click chuột */
+  border: 2.5px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: radial-gradient(circle at 35% 30%, #334155 0%, #1e293b 65%, #0f172a 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.35),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.5);
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+  outline: none;
+}
+
+.hud-round-btn:hover {
+  transform: scale(1.15);
+  z-index: 60;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.6),
+    0 0 14px rgba(56, 189, 248, 0.7),
+    0 6px 12px rgba(0, 0, 0, 0.6);
+}
+
+.hud-round-btn:active {
+  transform: scale(0.92);
+}
+
+.hud-round-btn__icon {
+  font-size: 1.15rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.7));
+  pointer-events: none;
+}
+
+/* Trạng thái BGM/SFX Active (Đang bật) */
+.hud-round-btn--active {
+  border-color: #38bdf8;
+  background: radial-gradient(circle at 35% 30%, #0ea5e9 0%, #0284c7 60%, #0369a1 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.5),
+    0 0 10px rgba(14, 165, 233, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Trạng thái Muted (Đã tắt) */
+.hud-round-btn--muted {
+  border-color: #475569;
+  opacity: 0.75;
+  filter: grayscale(0.5);
+}
+
+/* Nút Tài khoản đã đăng nhập */
+.hud-round-btn--logged {
+  border-color: #22c55e;
+  background: radial-gradient(circle at 35% 30%, #22c55e 0%, #16a34a 60%, #14532d 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.5),
+    0 0 10px rgba(34, 197, 94, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Chấm xanh online cho tài khoản */
+.hud-round-btn__online-dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4ade80;
+  border: 1.5px solid #0f172a;
+  box-shadow: 0 0 6px #4ade80;
+  animation: hud-online-pulse 2s infinite ease-in-out;
+}
+
+@keyframes hud-online-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.15); }
+}
+
+/* ── Cụm Web3 khi đã kết nối ví ── */
+.web3-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+/* Pill số dư token $PIXEL */
+.web3-token-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 2px solid #8b5cf6;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.25),
+    0 0 10px rgba(139, 92, 246, 0.35),
+    0 4px 8px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  cursor: default;
+}
+
+.web3-token-pill .token-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.web3-token-pill .token-val {
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-family: monospace;
+}
+
+.web3-token-pill .token-symbol {
+  color: #c084fc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* Nút nhận Faucet */
+.web3-faucet-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 20px;
+  border: 2px solid #0284c7;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    0 4px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.web3-faucet-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+  filter: brightness(1.15) drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
+}
+
+.web3-faucet-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Pill địa chỉ ví (ngắt kết nối khi bấm) */
+.web3-address-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 2px solid #22c55e;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.web3-address-pill:hover {
+  transform: scale(1.06);
+  border-color: #ef4444;
+  background: rgba(69, 10, 10, 0.88);
+}
+
+.web3-address-pill .wallet-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+.web3-address-pill:hover .wallet-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+.web3-address-pill .wallet-addr {
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+/* ── Nút Kết Nối Ví MetaMask (chưa kết nối) ── */
+.hud-connect-wallet-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 22px;
+  border: 2.5px solid #d97706;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.5),
+    0 4px 10px rgba(0, 0, 0, 0.55),
+    0 0 12px rgba(245, 158, 11, 0.4);
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.hud-connect-wallet-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+  filter: brightness(1.15) drop-shadow(0 0 14px rgba(245, 158, 11, 0.85));
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.7),
+    0 6px 14px rgba(0, 0, 0, 0.65);
+}
+
+.hud-connect-wallet-btn:active {
+  transform: scale(0.94);
+}
+
+.hud-connect-wallet-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.metamask-fox-svg {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+
+.connect-text {
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Tooltip Pixel-art cho cụm bên phải ── */
+.hud-tooltip {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  background: rgba(10, 15, 28, 0.95);
+  border: 1.5px solid #38bdf8;
+  border-radius: 7px;
+  padding: 5px 9px;
+  color: #f0fdf4;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.hud-round-btn:hover .hud-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.hud-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent rgba(10, 15, 28, 0.95) transparent;
+}
+
