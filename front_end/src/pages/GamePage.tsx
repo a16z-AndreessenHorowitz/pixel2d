@@ -5,7 +5,6 @@ import { QuestPanel } from '../components/QuestPanel'
 import { ShopModal, type ShopItem } from '../components/ShopModal'
 import { AppNavbar } from '../components/AppNavbar'
 import { ClaimTokenModal } from '../components/ClaimTokenModal'
-import { NftShopModal } from '../components/NftShopModal'
 import { AuthModal, type AuthUser } from '../components/AuthModal'
 import { DialogueModal } from '../components/DialogueModal'
 import { GameFiHubModal } from '../components/GameFiHubModal'
@@ -50,7 +49,6 @@ export function GamePage() {
   const [inventoryOpen, setInventoryOpen] = useState(false)
   const [shopOpen, setShopOpen] = useState(false)
   const [claimModalOpen, setClaimModalOpen] = useState(false)
-  const [nftShopOpen, setNftShopOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     try {
@@ -67,12 +65,10 @@ export function GamePage() {
     account,
     ethBalance,
     pixelBalance,
-    ownedNfts,
     isConnecting,
     connectWallet,
     disconnect,
     claimFaucet,
-    mintNft,
     claimFarmingReward,
     refreshBalances,
   } = useWeb3()
@@ -630,10 +626,6 @@ export function GamePage() {
     refreshBalances()
   }
 
-  const handleMintNftSuccess = (_itemType: number, _txHash: string) => {
-    refreshBalances()
-  }
-
   /*
    * ---------------------------------------------------------
    * Open / close inventory with keyboard I
@@ -816,7 +808,6 @@ export function GamePage() {
         onConnect={connectWallet}
         onDisconnect={disconnect}
         onOpenClaim={() => setClaimModalOpen(true)}
-        onOpenNftShop={() => setNftShopOpen(true)}
         onOpenGameFiHub={() => setGameFiHubOpen(true)}
         onClaimFaucet={handleClaimFaucet}
       />
@@ -879,17 +870,6 @@ export function GamePage() {
         onClaimSuccess={handleClaimSuccess}
       />
 
-      {/* Web3 NFT Shop Modal (1-Click Mint) */}
-      <NftShopModal
-        isOpen={nftShopOpen}
-        onClose={() => setNftShopOpen(false)}
-        account={account}
-        pixelBalance={pixelBalance}
-        ownedNfts={ownedNfts}
-        mintNft={mintNft}
-        onMintSuccess={handleMintNftSuccess}
-      />
-
       {/* Auth Modal (SIWE & Traditional Login / Register) */}
       <AuthModal
         isOpen={authModalOpen}
@@ -922,9 +902,7 @@ export function GamePage() {
         account={account}
         pixelBalance={pixelBalance}
         ethBalance={ethBalance}
-        ownedNfts={ownedNfts}
         onOpenClaim={() => setClaimModalOpen(true)}
-        onOpenNftShop={() => setNftShopOpen(true)}
         onConnectWallet={connectWallet}
       />
 
@@ -1063,17 +1041,6 @@ export function GamePage() {
           onClick={() => setShopOpen((prev) => !prev)}
         >
           🛒
-        </button>
-
-        {/* NFT Shop Button (1-Click Mint) */}
-        <button
-          type="button"
-          className={`toolbar-menu${nftShopOpen ? ' toolbar-menu-active' : ''}`}
-          aria-label="Cửa hàng NFT Buff"
-          title="Cửa hàng NFT (1-Click Mint)"
-          onClick={() => setNftShopOpen(true)}
-        >
-          ✨
         </button>
 
         {/* GameFi Hub Button (Vault & Analytics) */}

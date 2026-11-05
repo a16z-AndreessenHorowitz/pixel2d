@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "frontend": "cd front_end && corepack pnpm dev",
-    "backend": "cd backend && corepack pnpm dev",
-    "contracts:node": "cd contracts && corepack pnpm exec hardhat node",
-    "contracts:deploy": "cd contracts && corepack pnpm exec hardhat run scripts/deploy.ts --network localhost",
-    "test:contracts": "cd contracts && corepack pnpm test",
-    "test:backend": "cd backend && corepack pnpm test"
+    "frontend": "cd front_end && pnpm dev",
+    "backend": "cd backend && pnpm dev",
+    "contracts:node": "cd contracts && pnpm exec hardhat node",
+    "contracts:deploy": "cd contracts && pnpm exec hardhat run scripts/deploy.ts --network localhost",
+    "contracts:deploy:amoy": "cd contracts && pnpm exec hardhat run scripts/deploy.ts --network polygonAmoy",
+    "contracts:deploy:polygon": "cd contracts && pnpm exec hardhat run scripts/deploy.ts --network polygon",
+    "contracts:deploy:sepolia": "cd contracts && pnpm exec hardhat run scripts/deploy.ts --network sepolia",
+    "test:contracts": "cd contracts && pnpm test",
+    "test:backend": "cd backend && pnpm test"
   }
 }

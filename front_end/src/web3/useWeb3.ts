@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { BrowserProvider, Contract, formatEther } from 'ethers'
+import { BrowserProvider, Contract, formatEther, parseEther } from 'ethers'
 import {
   CONTRACT_ADDRESSES,
   PIXEL_TOKEN_ABI,
-  FARM_ITEM_NFT_ABI,
   CHAIN_CONFIG,
 } from './abis/contracts'
 
@@ -14,7 +13,6 @@ export interface Web3State {
   isConnecting: boolean
   ethBalance: string
   pixelBalance: string
-  ownedNfts: [boolean, boolean, boolean, boolean]
   error: string | null
 }
 
@@ -31,32 +29,12 @@ export function useWeb3() {
   const [chainId, setChainId] = useState<number | null>(null)
   const [ethBalance, setEthBalance] = useState<string>('0.00')
   const [pixelBalance, setPixelBalance] = useState<string>('0')
-  const [ownedNfts, setOwnedNfts] = useState<[boolean, boolean, boolean, boolean]>([
-    false,
-    false,
-    false,
-    false,
-  ])
   const [isConnecting, setIsConnecting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
   const isCorrectNetwork = chainId === CHAIN_CONFIG.chainId
 
-  // Helper to dispatch React -> Phaser buff event
-  const dispatchBuffEvent = useCallback((nfts: [boolean, boolean, boolean, boolean]) => {
-    window.dispatchEvent(
-      new CustomEvent('web3-buff-updated', {
-        detail: {
-          hasGoldSickle: nfts[0],
-          hasGoldWateringCan: nfts[1],
-          hasGoldHoe: nfts[2],
-          hasGoldenFish: nfts[3],
-        },
-      }),
-    )
-  }, [])
-
-  // Refresh balances & NFT state
+  // Refresh balances
   const refreshBalances = useCallback(async () => {
     if (!account || !window.ethereum) return
 
@@ -77,26 +55,10 @@ export function useWeb3() {
       )
       const tokenBal = await tokenContract.balanceOf(account)
       setPixelBalance(Math.floor(Number(formatEther(tokenBal))).toString())
-
-      // 3. NFT Ownership Batch View
-      const nftContract = new Contract(
-        CONTRACT_ADDRESSES.FARM_ITEM_NFT,
-        FARM_ITEM_NFT_ABI,
-        provider,
-      )
-      const rawOwned = await nftContract.getOwnedItems(account)
-      const parsedNfts: [boolean, boolean, boolean, boolean] = [
-        Boolean(rawOwned[0]),
-        Boolean(rawOwned[1]),
-        Boolean(rawOwned[2]),
-        Boolean(rawOwned[3]),
-      ]
-      setOwnedNfts(parsedNfts)
-      dispatchBuffEvent(parsedNfts)
     } catch (err: any) {
       console.warn('Could not refresh on-chain balances (contract might not be on current network):', err?.message)
     }
-  }, [account, dispatchBuffEvent])
+  }, [account])
 
   // Switch network helper
   const switchNetwork = useCallback(async (targetChainId: number = CHAIN_CONFIG.chainId) => {
@@ -133,6 +95,19 @@ export function useWeb3() {
                 nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
                 rpcUrls: ['https://rpc-amoy.polygon.technology'],
                 blockExplorerUrls: ['https://amoy.polygonscan.com'],
+              },
+            ],
+          })
+        } else if (targetChainId === 11155111) {
+          await (window.ethereum as any).request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: hexChainId,
+                chainName: 'Ethereum Sepolia Testnet',
+                nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
+                rpcUrls: ['https://rpc.sepolia.org'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io'],
               },
             ],
           })
@@ -187,15 +162,13 @@ export function useWeb3() {
     setAccount(null)
     setEthBalance('0.00')
     setPixelBalance('0')
-    setOwnedNfts([false, false, false, false])
-    dispatchBuffEvent([false, false, false, false])
     try {
       localStorage.removeItem('pixel_wallet_address')
       localStorage.setItem('pixel_wallet_disconnected', 'true')
     } catch {
       // ignore storage errors
     }
-  }, [dispatchBuffEvent])
+  }, [])
 
   // Claim Faucet (100 $PIXEL)
   const claimFaucet = useCallback(async () => {
@@ -213,20 +186,23 @@ export function useWeb3() {
     return tx.hash
   }, [account, refreshBalances])
 
-  // 1-Click Mint NFT
-  const mintNft = useCallback(
-    async (itemType: number) => {
+  // Deposit $PIXEL tokens to System Treasury Vault
+  const depositTokens = useCallback(
+    async (amount: number, vaultAddress: string) => {
       if (!account || !window.ethereum) throw new Error('Chưa kết nối ví')
       const provider = new BrowserProvider(window.ethereum as any)
       const signer = await provider.getSigner()
-      const nftContract = new Contract(
-        CONTRACT_ADDRESSES.FARM_ITEM_NFT,
-        FARM_ITEM_NFT_ABI,
+      const tokenContract = new Contract(
+        CONTRACT_ADDRESSES.PIXEL_TOKEN,
+        PIXEL_TOKEN_ABI,
         signer,
       )
 
-      // 1-Click Mint: calls contract directly, burns $PIXEL automatically
-      const tx = await nftContract.mintWithToken(itemType)
+      const nonce = Math.floor(Date.now() / 1000) * 100 + Math.floor(Math.random() * 100)
+      const amountWei = parseEther(amount.toString())
+
+      // Call depositToVault on contract
+      const tx = await tokenContract.depositToVault(vaultAddress, amountWei, nonce)
       const receipt = await tx.wait()
       await refreshBalances()
       return receipt.hash
@@ -234,7 +210,7 @@ export function useWeb3() {
     [account, refreshBalances],
   )
 
-  // Claim farming rewards via Backend ECDSA signature
+  // Claim farming rewards via Backend EIP-712 signature
   const claimFarmingReward = useCallback(
     async (
       amount: number,
@@ -291,7 +267,6 @@ export function useWeb3() {
           const network = await provider.getNetwork()
           setChainId(Number(network.chainId))
         } else {
-          // No active account in MetaMask
           setAccount(null)
           localStorage.removeItem('pixel_wallet_address')
         }
@@ -342,14 +317,13 @@ export function useWeb3() {
     isConnecting,
     ethBalance,
     pixelBalance,
-    ownedNfts,
     error,
     connectWallet,
     disconnect,
     switchNetwork,
     refreshBalances,
     claimFaucet,
-    mintNft,
+    depositTokens,
     claimFarmingReward,
   }
 }

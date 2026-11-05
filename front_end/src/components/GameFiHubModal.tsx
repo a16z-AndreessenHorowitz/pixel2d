@@ -12,9 +12,7 @@ export interface GameFiHubModalProps {
   account: string | null
   pixelBalance: string
   ethBalance: string
-  ownedNfts: [boolean, boolean, boolean, boolean] | boolean[]
   onOpenClaim: () => void
-  onOpenNftShop: () => void
   onConnectWallet: () => void
 }
 
@@ -47,12 +45,10 @@ export function GameFiHubModal({
   account,
   pixelBalance,
   ethBalance,
-  ownedNfts,
   onOpenClaim,
-  onOpenNftShop,
   onConnectWallet,
 }: GameFiHubModalProps) {
-  const [tab, setTab] = useState<'overview' | 'vault' | 'nfts' | 'history'>('overview')
+  const [tab, setTab] = useState<'overview' | 'vault' | 'history'>('overview')
   const [claimStatus, setClaimStatus] = useState<ClaimStatus | null>(null)
   const [cooldownCountdown, setCooldownCountdown] = useState<number>(0)
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
@@ -122,39 +118,6 @@ export function GameFiHubModal({
     ? `${account.slice(0, 6)}...${account.slice(-4)}`
     : null
 
-  const nftBuffDefs = [
-    {
-      typeId: 0,
-      name: 'Liềm Thu Hoạch Vàng',
-      icon: '/assets/tools/bloomseed/Sickle/Sickle_Gold_Down.png',
-      buff: '+50% Nông Sản Thu Hoạch',
-      desc: 'Liềm đúc từ vàng nguyên khối, tăng gấp đôi sản lượng nông sản.',
-    },
-    {
-      typeId: 1,
-      name: 'Bình Tưới Vàng',
-      icon: '/assets/tools/bloomseed/Watering_Can/Watering_Can_Gold_Down.png',
-      buff: 'Giảm 20% thời gian lớn cây',
-      desc: 'Giúp cây lớn nhanh hơn 1.25x và tăng độ ẩm đất bền bỉ.',
-    },
-    {
-      typeId: 2,
-      name: 'Cuốc Đất Vàng',
-      icon: '/assets/tools/bloomseed/Hoe/Hoe_Gold_Down.png',
-      buff: 'Giảm thể lực khi xới đất',
-      desc: 'Cuốc đất siêu nhẹ, xới đất nhanh chóng và tiết kiệm thể lực.',
-    },
-    {
-      typeId: 3,
-      name: 'Cá Vàng Thần Tài',
-      icon: '/assets/fishing/golden-fish.png',
-      buff: '+100% tỷ lệ cá quý hiếm',
-      desc: 'Bùa may mắn của ngư dân, câu được nhiều cá to giá trị.',
-    },
-  ]
-
-  const ownedCount = ownedNfts.filter(Boolean).length
-
   return (
     <div className="gamefi-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
       <div className="gamefi-modal" onClick={(e) => e.stopPropagation()}>
@@ -187,14 +150,7 @@ export function GameFiHubModal({
             className={`gamefi-tab-btn ${tab === 'vault' ? 'active' : ''}`}
             onClick={() => setTab('vault')}
           >
-            🛡️ ECDSA Vault ($PIXEL)
-          </button>
-          <button
-            type="button"
-            className={`gamefi-tab-btn ${tab === 'nfts' ? 'active' : ''}`}
-            onClick={() => setTab('nfts')}
-          >
-            ✨ NFT Buffs ({ownedCount})
+            🛡️ EIP-712 Vault ($PIXEL)
           </button>
           <button
             type="button"
@@ -299,16 +255,6 @@ export function GameFiHubModal({
                 >
                   🪙 Đổi Coin Lấy $PIXEL
                 </button>
-                <button
-                  type="button"
-                  className="quick-action-btn quick-action-btn--nft"
-                  onClick={() => {
-                    onClose()
-                    onOpenNftShop()
-                  }}
-                >
-                  ✨ Đúc NFT Buff Với $PIXEL
-                </button>
               </div>
             </div>
           )}
@@ -380,52 +326,7 @@ export function GameFiHubModal({
             </div>
           )}
 
-          {/* TAB 3: NFT BUFFS */}
-          {tab === 'nfts' && (
-            <div className="nfts-tab-content">
-              <div className="nfts-grid">
-                {nftBuffDefs.map((nft) => {
-                  const isOwned = Boolean(ownedNfts[nft.typeId])
-                  return (
-                    <div
-                      key={nft.typeId}
-                      className={`nft-buff-card ${isOwned ? 'nft-buff-card--owned' : ''}`}
-                    >
-                      <div className="nft-buff-card__img-wrap">
-                        <img src={nft.icon} alt={nft.name} className="nft-buff-img" />
-                        {isOwned && <span className="nft-owned-badge">✓ Đã Sở Hữu</span>}
-                      </div>
-
-                      <div className="nft-buff-card__info">
-                        <h4>{nft.name}</h4>
-                        <span className="buff-highlight">{nft.buff}</span>
-                        <p>{nft.desc}</p>
-                      </div>
-
-                      <div className="nft-buff-card__status">
-                        {isOwned ? (
-                          <span className="status-active">⚡ Buff Kích Hoạt</span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="mint-redirect-btn"
-                            onClick={() => {
-                              onClose()
-                              onOpenNftShop()
-                            }}
-                          >
-                            Đúc NFT Ngay
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: TRANSACTION HISTORY */}
+          {/* TAB 3: TRANSACTION HISTORY */}
           {tab === 'history' && (
             <div className="history-tab-content">
               <div className="history-header">

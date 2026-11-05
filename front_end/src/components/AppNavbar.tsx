@@ -17,7 +17,6 @@ export interface AppNavbarProps {
   onConnect: () => void
   onDisconnect: () => void
   onOpenClaim: () => void
-  onOpenNftShop: () => void
   onOpenGameFiHub?: () => void
   onClaimFaucet: () => void
 }
@@ -33,7 +32,6 @@ export function AppNavbar({
   onConnect,
   onDisconnect,
   onOpenClaim,
-  onOpenNftShop,
   onOpenGameFiHub,
   onClaimFaucet,
 }: AppNavbarProps) {
@@ -76,13 +74,6 @@ export function AppNavbar({
               onClick={onOpenGameFiHub}
             >
               📊 GameFi Hub
-            </button>
-            <button
-              type="button"
-              className="nav-action-btn shop-btn"
-              onClick={onOpenNftShop}
-            >
-              ✨ NFT Shop (Buff)
             </button>
             <button
               type="button"

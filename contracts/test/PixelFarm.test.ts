@@ -1,52 +1,87 @@
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 import { time } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { PixelFarmToken, FarmItemNFT } from '../typechain-types'
+import { PixelFarmToken } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 
-describe('🌾 Pixel2D GameFi Smart Contracts Test Suite', function () {
+describe('🌾 PixelFarmToken ($PIXEL) ERC-20 Smart Contract Test Suite', function () {
   let pixelToken: PixelFarmToken
-  let farmNft: FarmItemNFT
   let owner: SignerWithAddress
   let backendSigner: SignerWithAddress
   let player1: SignerWithAddress
   let player2: SignerWithAddress
   let fakeSigner: SignerWithAddress
+  let vault: SignerWithAddress
 
-  const BASE_URI = 'https://api.pixel2d.game/metadata/items/'
+  let contractAddress: string
+  let chainId: bigint
+
+  // EIP-712 Helper to sign typed claim voucher
+  async function createEip712ClaimSignature(
+    signer: SignerWithAddress,
+    player: string,
+    amount: number,
+    nonce: number,
+    deadline: number,
+  ) {
+    const domain = {
+      name: 'PixelFarmToken',
+      version: '1',
+      chainId: chainId,
+      verifyingContract: contractAddress,
+    }
+
+    const types = {
+      ClaimFarmingReward: [
+        { name: 'player', type: 'address' },
+        { name: 'amount', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' },
+      ],
+    }
+
+    const value = {
+      player,
+      amount,
+      nonce,
+      deadline,
+    }
+
+    return await signer.signTypedData(domain, types, value)
+  }
 
   beforeEach(async function () {
-    ;[owner, backendSigner, player1, player2, fakeSigner] = await ethers.getSigners()
+    ;[owner, backendSigner, player1, player2, fakeSigner, vault] = await ethers.getSigners()
 
-    // 1. Deploy PixelFarmToken
     const TokenFactory = await ethers.getContractFactory('PixelFarmToken')
     pixelToken = await TokenFactory.deploy(owner.address, backendSigner.address)
     await pixelToken.waitForDeployment()
 
-    // 2. Deploy FarmItemNFT
-    const NFTFactory = await ethers.getContractFactory('FarmItemNFT')
-    farmNft = await NFTFactory.deploy(owner.address, await pixelToken.getAddress(), BASE_URI)
-    await farmNft.waitForDeployment()
-
-    // 3. Grant BURNER_ROLE to FarmItemNFT contract
-    const BURNER_ROLE = await pixelToken.BURNER_ROLE()
-    await pixelToken.grantRole(BURNER_ROLE, await farmNft.getAddress())
+    contractAddress = await pixelToken.getAddress()
+    const network = await ethers.provider.getNetwork()
+    chainId = network.chainId
   })
 
   describe('1️⃣ Deployment & Initial Configuration', function () {
-    it('Should set proper roles and initial admin supply', async function () {
-      const SIGNER_ROLE = await pixelToken.SIGNER_ROLE()
-      const BURNER_ROLE = await pixelToken.BURNER_ROLE()
-
-      expect(await pixelToken.hasRole(SIGNER_ROLE, backendSigner.address)).to.be.true
-      expect(await pixelToken.hasRole(BURNER_ROLE, await farmNft.getAddress())).to.be.true
-
-      const ownerBalance = await pixelToken.balanceOf(owner.address)
-      expect(ownerBalance).to.equal(ethers.parseEther('10000'))
+    it('Should set proper ERC-20 name, symbol, and decimals', async function () {
+      expect(await pixelToken.name()).to.equal('Pixel Farm Token')
+      expect(await pixelToken.symbol()).to.equal('PIXEL')
+      expect(await pixelToken.decimals()).to.equal(18)
     })
 
-    it('Should link FarmItemNFT to PixelFarmToken correctly', async function () {
-      expect(await farmNft.pixelToken()).to.equal(await pixelToken.getAddress())
+    it('Should grant DEFAULT_ADMIN_ROLE to deployer and SIGNER_ROLE to backend signer', async function () {
+      const DEFAULT_ADMIN_ROLE = await pixelToken.DEFAULT_ADMIN_ROLE()
+      const SIGNER_ROLE = await pixelToken.SIGNER_ROLE()
+
+      expect(await pixelToken.hasRole(DEFAULT_ADMIN_ROLE, owner.address)).to.be.true
+      expect(await pixelToken.hasRole(SIGNER_ROLE, backendSigner.address)).to.be.true
+      expect(await pixelToken.hasRole(SIGNER_ROLE, player1.address)).to.be.false
+    })
+
+    it('Should mint initial supply of 10,000 $PIXEL to admin', async function () {
+      const balance = await pixelToken.balanceOf(owner.address)
+      expect(balance).to.equal(ethers.parseEther('10000'))
+      expect(await pixelToken.totalSupply()).to.equal(ethers.parseEther('10000'))
     })
   })
 
@@ -67,29 +102,22 @@ describe('🌾 Pixel2D GameFi Smart Contracts Test Suite', function () {
         'Faucet cooldown is active',
       )
     })
+
+    it('Should allow claiming faucet again after cooldown expires', async function () {
+      await pixelToken.connect(player1).claimFaucet()
+      await time.increase(3601) // 1 hour + 1 second
+      await expect(pixelToken.connect(player1).claimFaucet()).to.emit(pixelToken, 'FaucetClaimed')
+      expect(await pixelToken.balanceOf(player1.address)).to.equal(ethers.parseEther('200'))
+    })
   })
 
-  describe('3️⃣ ECDSA Backend Signature Reward Claiming', function () {
-    async function createClaimSignature(
-      signer: SignerWithAddress,
-      player: string,
-      amount: number,
-      nonce: number,
-      deadline: number,
-    ) {
-      const messageHash = ethers.solidityPackedKeccak256(
-        ['address', 'uint256', 'uint256', 'uint256'],
-        [player, amount, nonce, deadline],
-      )
-      return await signer.signMessage(ethers.getBytes(messageHash))
-    }
-
-    it('Should allow player to claim reward with valid backend signature', async function () {
+  describe('3️⃣ EIP-712 Backend Signature Reward Claiming', function () {
+    it('Should allow player to claim reward with valid EIP-712 backend signature', async function () {
       const amount = 50 // 50 Coins -> 50 $PIXEL
       const nonce = 1001
       const deadline = (await time.latest()) + 3600
 
-      const signature = await createClaimSignature(
+      const signature = await createEip712ClaimSignature(
         backendSigner,
         player1.address,
         amount,
@@ -114,7 +142,7 @@ describe('🌾 Pixel2D GameFi Smart Contracts Test Suite', function () {
       const nonce = 2002
       const deadline = (await time.latest()) + 3600
 
-      const signature = await createClaimSignature(
+      const signature = await createEip712ClaimSignature(
         backendSigner,
         player1.address,
         amount,
@@ -126,10 +154,9 @@ describe('🌾 Pixel2D GameFi Smart Contracts Test Suite', function () {
         .connect(player1)
         .claimFarmingReward(amount, nonce, deadline, signature)
 
-      // Time travel past cooldown so cooldown error does not mask replay check
-      await time.increase(301)
+      await time.increase(301) // bypass cooldown
 
-      const secondSignature = await createClaimSignature(
+      const secondSignature = await createEip712ClaimSignature(
         backendSigner,
         player1.address,
         amount,
@@ -149,7 +176,7 @@ describe('🌾 Pixel2D GameFi Smart Contracts Test Suite', function () {
       const nonce = 3003
       const deadline = (await time.latest()) + 3600
 
-      const fakeSig = await createClaimSignature(
+      const fakeSig = await createEip712ClaimSignature(
         fakeSigner,
         player1.address,
         amount,
@@ -169,7 +196,7 @@ describe('🌾 Pixel2D GameFi Smart Contracts Test Suite', function () {
       const nonce = 4004
       const pastDeadline = (await time.latest()) - 100
 
-      const sig = await createClaimSignature(
+      const sig = await createEip712ClaimSignature(
         backendSigner,
         player1.address,
         amount,
@@ -185,11 +212,11 @@ describe('🌾 Pixel2D GameFi Smart Contracts Test Suite', function () {
     })
 
     it('Should reject claim exceeding maxClaimCap (100 Coins)', async function () {
-      const amount = 101 // cap is 100
+      const amount = 101
       const nonce = 5005
       const deadline = (await time.latest()) + 3600
 
-      const sig = await createClaimSignature(
+      const sig = await createEip712ClaimSignature(
         backendSigner,
         player1.address,
         amount,
@@ -207,96 +234,103 @@ describe('🌾 Pixel2D GameFi Smart Contracts Test Suite', function () {
     it('Should enforce 300-second cooldown between claims', async function () {
       const deadline = (await time.latest()) + 3600
 
-      const sig1 = await createClaimSignature(backendSigner, player1.address, 20, 6001, deadline)
+      const sig1 = await createEip712ClaimSignature(backendSigner, player1.address, 20, 6001, deadline)
       await pixelToken.connect(player1).claimFarmingReward(20, 6001, deadline, sig1)
 
-      const sig2 = await createClaimSignature(backendSigner, player1.address, 20, 6002, deadline)
+      const sig2 = await createEip712ClaimSignature(backendSigner, player1.address, 20, 6002, deadline)
       await expect(
         pixelToken.connect(player1).claimFarmingReward(20, 6002, deadline, sig2),
       ).to.be.revertedWith('Claim cooldown is active')
 
-      // Advance time by 301 seconds
       await time.increase(301)
-
       await expect(
         pixelToken.connect(player1).claimFarmingReward(20, 6002, deadline, sig2),
       ).to.emit(pixelToken, 'RewardClaimed')
     })
+
+    it('Should reject signature meant for a different chain or verifying contract (Domain Separation)', async function () {
+      const amount = 25
+      const nonce = 7001
+      const deadline = (await time.latest()) + 3600
+
+      // Sign with a fake chainId 99999
+      const wrongDomain = {
+        name: 'PixelFarmToken',
+        version: '1',
+        chainId: 99999n,
+        verifyingContract: contractAddress,
+      }
+      const types = {
+        ClaimFarmingReward: [
+          { name: 'player', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'deadline', type: 'uint256' },
+        ],
+      }
+      const wrongSig = await backendSigner.signTypedData(wrongDomain, types, {
+        player: player1.address,
+        amount,
+        nonce,
+        deadline,
+      })
+
+      await expect(
+        pixelToken.connect(player1).claimFarmingReward(amount, nonce, deadline, wrongSig),
+      ).to.be.revertedWith('Invalid backend signature')
+    })
   })
 
-  describe('4️⃣ 1-Click NFT Minting & Buff Bridge', function () {
+  describe('4️⃣ Vault Deposit Functionality', function () {
     beforeEach(async function () {
-      // Give player1 300 $PIXEL via faucet + reward
-      await pixelToken.connect(player1).claimFaucet() // 100 $PIXEL
-      await pixelToken.connect(owner).transfer(player1.address, ethers.parseEther('200')) // +200 $PIXEL
+      // Give player1 100 $PIXEL via faucet
+      await pixelToken.connect(player1).claimFaucet()
     })
 
-    it('Should 1-Click Mint NFT by burning $PIXEL WITHOUT prior approve()', async function () {
-      const initialBalance = await pixelToken.balanceOf(player1.address)
-      expect(initialBalance).to.equal(ethers.parseEther('300'))
+    it('Should allow player to deposit tokens to system vault and emit TokensDeposited', async function () {
+      const depositAmount = ethers.parseEther('50')
+      const nonce = 8888
 
-      // Item 1 = Gold Watering Can (price: 100 $PIXEL)
-      const itemPrice = ethers.parseEther('100')
-
-      // Direct mint call - NO approve() called!
-      await expect(farmNft.connect(player1).mintWithToken(1))
-        .to.emit(farmNft, 'ItemMinted')
-        .withArgs(player1.address, 1, 1, itemPrice)
-        .and.to.emit(pixelToken, 'TokensBurnedBySpender')
-        .withArgs(player1.address, await farmNft.getAddress(), itemPrice)
-
-      // Balance decreased by 100 $PIXEL
-      expect(await pixelToken.balanceOf(player1.address)).to.equal(ethers.parseEther('200'))
-
-      // Player owns NFT tokenId 1
-      expect(await farmNft.ownerOf(1)).to.equal(player1.address)
-      expect(await farmNft.tokenItemType(1)).to.equal(1)
-    })
-
-    it('Should correctly report getOwnedItems for React->Phaser buff bridge', async function () {
-      // Initially owns none
-      let owned = await farmNft.getOwnedItems(player1.address)
-      expect(owned[0]).to.be.false
-      expect(owned[1]).to.be.false
-      expect(owned[2]).to.be.false
-      expect(owned[3]).to.be.false
-
-      // Mint Item 1: Gold Watering Can
-      await farmNft.connect(player1).mintWithToken(1)
-
-      owned = await farmNft.getOwnedItems(player1.address)
-      expect(owned[0]).to.be.false
-      expect(owned[1]).to.be.true // Gold Watering Can owned! (-20% grow time active)
-      expect(owned[2]).to.be.false
-      expect(owned[3]).to.be.false
-
-      // Mint Item 0: Gold Sickle (price 50 $PIXEL)
-      await farmNft.connect(player1).mintWithToken(0)
-
-      owned = await farmNft.getOwnedItems(player1.address)
-      expect(owned[0]).to.be.true // Gold Sickle owned!
-      expect(owned[1]).to.be.true // Gold Watering Can owned!
-      expect(owned[2]).to.be.false
-      expect(owned[3]).to.be.false
-    })
-
-    it('Should prevent double purchasing the same item type', async function () {
-      await farmNft.connect(player1).mintWithToken(1)
-      await expect(farmNft.connect(player1).mintWithToken(1)).to.be.revertedWith(
-        'You already own this item type',
+      await expect(
+        pixelToken.connect(player1).depositToVault(vault.address, depositAmount, nonce),
       )
+        .to.emit(pixelToken, 'TokensDeposited')
+        .withArgs(player1.address, vault.address, depositAmount, nonce)
+
+      expect(await pixelToken.balanceOf(player1.address)).to.equal(ethers.parseEther('50'))
+      expect(await pixelToken.balanceOf(vault.address)).to.equal(depositAmount)
     })
 
-    it('Should revert if player has insufficient $PIXEL balance', async function () {
-      // player2 has 0 balance
-      await expect(farmNft.connect(player2).mintWithToken(0)).to.be.revertedWith(
-        'Insufficient $PIXEL balance',
-      )
+    it('Should revert deposit if vault address is zero or amount is zero', async function () {
+      await expect(
+        pixelToken.connect(player1).depositToVault(ethers.ZeroAddress, ethers.parseEther('10'), 9991),
+      ).to.be.revertedWith('Vault cannot be zero address')
+
+      await expect(
+        pixelToken.connect(player1).depositToVault(vault.address, 0, 9992),
+      ).to.be.revertedWith('Amount must be greater than zero')
+    })
+  })
+
+  describe('5️⃣ Admin Parameter Updates', function () {
+    it('Should allow admin to update maxClaimCap and emit event', async function () {
+      await expect(pixelToken.connect(owner).setMaxClaimCap(200))
+        .to.emit(pixelToken, 'ClaimCapUpdated')
+        .withArgs(100, 200)
+      expect(await pixelToken.maxClaimCap()).to.equal(200)
     })
 
-    it('Should return correct tokenURI metadata link', async function () {
-      await farmNft.connect(player1).mintWithToken(1)
-      expect(await farmNft.tokenURI(1)).to.equal('https://api.pixel2d.game/metadata/items/1.json')
+    it('Should allow admin to update cooldownSeconds and emit event', async function () {
+      await expect(pixelToken.connect(owner).setCooldownSeconds(600))
+        .to.emit(pixelToken, 'CooldownUpdated')
+        .withArgs(300, 600)
+      expect(await pixelToken.cooldownSeconds()).to.equal(600)
+    })
+
+    it('Should revert if non-admin attempts to update configuration', async function () {
+      await expect(
+        pixelToken.connect(player1).setMaxClaimCap(500),
+      ).to.be.revertedWithCustomError(pixelToken, 'AccessControlUnauthorizedAccount')
     })
   })
 })

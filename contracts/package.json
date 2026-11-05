@@ -7,10 +7,12 @@
     "test": "hardhat test",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "deploy:amoy": "hardhat run scripts/deploy.ts --network polygonAmoy",
+    "deploy:polygon": "hardhat run scripts/deploy.ts --network polygon",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "2.1.1",
     "@openzeppelin/contracts": "^5.2.0",
     "dotenv": "^16.4.7",
     "hardhat": "^2.22.18",
