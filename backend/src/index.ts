@@ -8,6 +8,7 @@ import { shopRouter } from './routes/shop.js'
 import { web3Router } from './routes/web3.js'
 import { transactionsRouter } from './routes/transactions.js'
 import { questRouter } from './routes/quests.js'
+import { quizRouter } from './routes/quiz.js'
 
 const app = express()
 
@@ -33,6 +34,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/game', gameRouter)
 app.use('/api/quests', questRouter)
 app.use('/api/game/quests', questRouter)
+app.use('/api/quiz', quizRouter)
 app.use('/api/shop', shopRouter)
 app.use('/api/web3', web3Router)
 app.use('/api/transactions', transactionsRouter)

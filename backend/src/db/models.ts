@@ -34,6 +34,7 @@ export interface IGameState extends Document {
   toolbar: (InventorySlot | null)[]
   plots: any[]
   quests: any[]
+  quiz_answered?: number[]
   updated_at: Date
 }
 
@@ -48,6 +49,7 @@ const GameStateSchema = new Schema<IGameState>({
   toolbar: { type: Schema.Types.Mixed, default: [] },
   plots: { type: Schema.Types.Mixed, default: [] },
   quests: { type: Schema.Types.Mixed, default: [] },
+  quiz_answered: { type: Schema.Types.Mixed, default: [] },
   updated_at: { type: Date, default: Date.now },
 })
 

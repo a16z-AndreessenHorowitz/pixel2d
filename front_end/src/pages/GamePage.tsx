@@ -7,6 +7,7 @@ import { ClaimTokenModal } from '../components/ClaimTokenModal'
 import { AuthModal, type AuthUser } from '../components/AuthModal'
 import { DialogueModal } from '../components/DialogueModal'
 import { GameFiHubModal } from '../components/GameFiHubModal'
+import { QuizModal } from '../components/QuizModal'
 import type { DialogueStep } from '../data/dialogues'
 import { soundEngine } from '../audio/SoundEngine'
 import { useWeb3 } from '../web3/useWeb3'
@@ -48,6 +49,7 @@ export function GamePage() {
   const [inventoryOpen, setInventoryOpen] = useState(false)
   const [shopOpen, setShopOpen] = useState(false)
   const [claimModalOpen, setClaimModalOpen] = useState(false)
+  const [quizModalOpen, setQuizModalOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     try {
@@ -673,6 +675,12 @@ export function GamePage() {
     refreshBalances()
   }
 
+  const handleQuizReward = (rewardCoins: number, rewardXp: number, newTotalCoins: number) => {
+    setCoins(newTotalCoins)
+    addXP(rewardXp)
+    alert(`🎉 Bạn đã nhận được +${rewardCoins} Coins từ bài học Blockchain!`)
+  }
+
   /*
    * ---------------------------------------------------------
    * Open / close inventory with keyboard I
@@ -696,6 +704,9 @@ export function GamePage() {
       } else if (event.key.toLowerCase() === 'h') {
         event.preventDefault()
         setGameFiHubOpen((prev) => !prev)
+      } else if (event.key.toLowerCase() === 'q') {
+        event.preventDefault()
+        setQuizModalOpen((prev) => !prev)
       }
     }
 
@@ -947,6 +958,16 @@ export function GamePage() {
         onConnectWallet={connectWallet}
       />
 
+      {/* Blockchain Learn-to-Earn Quiz Modal */}
+      <QuizModal
+        isOpen={quizModalOpen}
+        onClose={() => setQuizModalOpen(false)}
+        account={account}
+        currentUser={currentUser}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onRewardEarned={handleQuizReward}
+      />
+
       {/* =====================================================
           INVENTORY POPUP
           ===================================================== */}
@@ -1104,6 +1125,17 @@ export function GamePage() {
           onClick={() => setClaimModalOpen(true)}
         >
           🪙
+        </button>
+
+        {/* Blockchain Learn-to-Earn Quiz Button */}
+        <button
+          type="button"
+          className={`toolbar-menu${quizModalOpen ? ' toolbar-menu-active' : ''}`}
+          aria-label="Lớp học Blockchain & Web3 (Q)"
+          title="Lớp học Blockchain & Web3 - Trắc nghiệm nhận Coin (Phím tắt: Q)"
+          onClick={() => setQuizModalOpen((prev) => !prev)}
+        >
+          🎓
         </button>
 
         {toolbar.map((tool, toolbarIndex) => {
