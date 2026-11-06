@@ -6,7 +6,7 @@ export interface QuizModalProps {
   isOpen: boolean
   onClose: () => void
   account: string | null
-  currentUser: { address: string; token?: string } | null
+  currentUser: { id?: number; username?: string; address?: string; wallet_address?: string; token?: string } | null
   onOpenAuth?: () => void
   onRewardEarned?: (coinsEarned: number, xpEarned: number, newTotalCoins: number) => void
 }
@@ -45,7 +45,8 @@ export function QuizModal({
     correctIndex?: number
   } | null>(null)
 
-  const userAddress = currentUser?.address || account
+  const userAddress = currentUser?.address || currentUser?.wallet_address || account
+  const token = currentUser?.token || (typeof localStorage !== 'undefined' ? localStorage.getItem('pixel_farm_jwt') : null)
 
   // Load questions from Backend
   const loadQuestions = useCallback(async () => {
@@ -103,7 +104,7 @@ export function QuizModal({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           questionId: currentQ.id,
@@ -126,7 +127,7 @@ export function QuizModal({
             onRewardEarned?.(res.rewardCoins, res.rewardXp, res.newCoins)
           }
         } else {
-          soundEngine.playMiss()
+          soundEngine.playExhausted()
           setFeedback({
             isCorrect: false,
             message: res.message,

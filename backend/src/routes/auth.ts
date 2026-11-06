@@ -69,22 +69,27 @@ authRouter.post('/login-wallet', async (req, res) => {
       await user.save()
     }
 
-    // Ensure GameState exists in game_states collection
-    let gameState = await GameStateModel.findOne({ wallet_address: normalizedAddr })
-    if (!gameState) {
-      gameState = await GameStateModel.create({
-        wallet_address: normalizedAddr,
-        coins: 100,
-        energy: 100,
-        max_energy: 100,
-        level: 1,
-        xp: 0,
-        inventory: DEFAULT_INITIAL_INVENTORY,
-        toolbar: DEFAULT_INITIAL_TOOLBAR,
-        plots: [],
-        quests: [],
-      })
-    }
+    // Ensure GameState exists in game_states collection (safe upsert)
+    const gameState = await GameStateModel.findOneAndUpdate(
+      { wallet_address: normalizedAddr },
+      {
+        $setOnInsert: {
+          wallet_address: normalizedAddr,
+          coins: 100,
+          energy: 100,
+          max_energy: 100,
+          level: 1,
+          xp: 0,
+          inventory: DEFAULT_INITIAL_INVENTORY,
+          toolbar: DEFAULT_INITIAL_TOOLBAR,
+          plots: [],
+          quests: [],
+          quiz_answered: [],
+          updated_at: new Date(),
+        },
+      },
+      { upsert: true, returnDocument: 'after' },
+    )
 
     // Issue JWT
     const token = jwt.sign(
@@ -95,11 +100,13 @@ authRouter.post('/login-wallet', async (req, res) => {
 
     res.json({
       success: true,
+      message: 'Xác thực ví MetaMask thành công!',
       token,
       user: {
         id: user.id,
         username: user.username,
         wallet_address: normalizedAddr,
+        address: normalizedAddr,
       },
       gameState: {
         coins: gameState.coins,
@@ -123,57 +130,120 @@ authRouter.post('/login-wallet', async (req, res) => {
 authRouter.post('/register', async (req, res) => {
   const { username, password, wallet_address } = req.body
   if (!username || !password) {
-    return res.status(400).json({ success: false, error: 'Cần nhập username và password' })
+    return res.status(400).json({ success: false, error: 'Cần nhập đầy đủ username và password' })
   }
 
-  const normalizedAddr = wallet_address ? wallet_address.toLowerCase() : `0x${crypto.randomBytes(20).toString('hex')}`
+  const cleanUsername = String(username).trim()
+  if (cleanUsername.length < 3) {
+    return res.status(400).json({ success: false, error: 'Tên đăng nhập phải có ít nhất 3 ký tự' })
+  }
+
   const passwordHash = hashPassword(password)
+  const normalizedAddr = wallet_address ? String(wallet_address).toLowerCase().trim() : null
 
   try {
-    const existing = await UserModel.findOne({
-      $or: [{ username }, { wallet_address: normalizedAddr }],
-    })
-    if (existing) {
-      return res.status(409).json({ success: false, error: 'Username hoặc Wallet Address đã tồn tại' })
+    // 1. Kiểm tra username đã tồn tại chưa
+    const existingUser = await UserModel.findOne({ username: cleanUsername })
+    if (existingUser) {
+      return res.status(409).json({ success: false, error: 'Tên đăng nhập này đã được sử dụng! Vui lòng chọn tên khác.' })
     }
 
+    let finalWallet = normalizedAddr
+
+    // 2. Nếu có ví gửi lên, kiểm tra xem ví đã tồn tại chưa
+    if (finalWallet) {
+      const existingWalletUser = await UserModel.findOne({ wallet_address: finalWallet })
+      if (existingWalletUser) {
+        // Nếu ví này trước đó chỉ đăng nhập nhanh bằng MetaMask (chưa có password hoặc là Farmer_...)
+        // thì nâng cấp tài khoản đó thành username và password mới này!
+        if (!existingWalletUser.password_hash || existingWalletUser.username.startsWith('Farmer_')) {
+          existingWalletUser.username = cleanUsername
+          existingWalletUser.password_hash = passwordHash
+          existingWalletUser.last_login = new Date()
+          await existingWalletUser.save()
+
+          const token = jwt.sign(
+            { address: finalWallet, username: cleanUsername, role: 'player' },
+            CONFIG.JWT_SECRET,
+            { expiresIn: '7d' },
+          )
+
+          return res.json({
+            success: true,
+            message: 'Đăng ký và liên kết ví thành công!',
+            token,
+            user: {
+              id: existingWalletUser.id,
+              username: cleanUsername,
+              wallet_address: finalWallet,
+              address: finalWallet,
+            },
+          })
+        } else {
+          return res.status(409).json({
+            success: false,
+            error: 'Địa chỉ ví này đã được liên kết với một tài khoản khác!',
+          })
+        }
+      }
+    } else {
+      // Nếu không có ví, tạo địa chỉ ví ảo nội bộ để định danh dữ liệu GameState
+      finalWallet = `0x${crypto.randomBytes(20).toString('hex')}`
+    }
+
+    // 3. Tạo tài khoản User mới trong MongoDB
     const count = await UserModel.countDocuments()
-    const user = await UserModel.create({
+    const newUser = await UserModel.create({
       id: count + 1,
-      username,
+      username: cleanUsername,
       password_hash: passwordHash,
-      wallet_address: normalizedAddr,
+      wallet_address: finalWallet,
       created_at: new Date(),
       last_login: new Date(),
     })
 
-    // Init game state
-    await GameStateModel.create({
-      wallet_address: normalizedAddr,
-      coins: 100,
-      energy: 100,
-      max_energy: 100,
-      level: 1,
-      xp: 0,
-      inventory: DEFAULT_INITIAL_INVENTORY,
-      toolbar: DEFAULT_INITIAL_TOOLBAR,
-      plots: [],
-      quests: [],
-    })
+    // 4. Khởi tạo GameState an toàn (upsert chống lỗi duplicate)
+    await GameStateModel.findOneAndUpdate(
+      { wallet_address: finalWallet },
+      {
+        $setOnInsert: {
+          wallet_address: finalWallet,
+          coins: 100,
+          energy: 100,
+          max_energy: 100,
+          level: 1,
+          xp: 0,
+          inventory: DEFAULT_INITIAL_INVENTORY,
+          toolbar: DEFAULT_INITIAL_TOOLBAR,
+          plots: [],
+          quests: [],
+          quiz_answered: [],
+          updated_at: new Date(),
+        },
+      },
+      { upsert: true, returnDocument: 'after' },
+    )
 
     const token = jwt.sign(
-      { address: normalizedAddr, username, role: 'player' },
+      { address: finalWallet, username: cleanUsername, role: 'player' },
       CONFIG.JWT_SECRET,
       { expiresIn: '7d' },
     )
 
     res.json({
       success: true,
+      message: 'Đăng ký tài khoản thành công!',
       token,
-      user: { id: user.id, username, wallet_address: normalizedAddr },
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        wallet_address: finalWallet,
+        address: finalWallet,
+      },
     })
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message })
+    console.error('Lỗi đăng ký user:', err)
+    res.status(500).json({ success: false, error: 'Không thể tạo tài khoản: ' + err.message })
   }
 })
 
@@ -181,30 +251,63 @@ authRouter.post('/register', async (req, res) => {
 authRouter.post('/login', async (req, res) => {
   const { username, password } = req.body
   if (!username || !password) {
-    return res.status(400).json({ success: false, error: 'Cần nhập username và password' })
+    return res.status(400).json({ success: false, error: 'Cần nhập đầy đủ username và password' })
   }
 
+  const cleanUsername = String(username).trim()
   const passwordHash = hashPassword(password)
 
   try {
-    const user = await UserModel.findOne({ username, password_hash: passwordHash })
+    const user = await UserModel.findOne({ username: cleanUsername, password_hash: passwordHash })
     if (!user) {
-      return res.status(401).json({ success: false, error: 'Tên đăng nhập hoặc mật khẩu không đúng' })
+      return res.status(401).json({ success: false, error: 'Tên đăng nhập hoặc mật khẩu không chính xác' })
     }
 
     user.last_login = new Date()
     await user.save()
 
+    const addr = user.wallet_address || ''
+
+    // Đảm bảo GameState tồn tại
+    if (addr) {
+      await GameStateModel.findOneAndUpdate(
+        { wallet_address: addr },
+        {
+          $setOnInsert: {
+            wallet_address: addr,
+            coins: 100,
+            energy: 100,
+            max_energy: 100,
+            level: 1,
+            xp: 0,
+            inventory: DEFAULT_INITIAL_INVENTORY,
+            toolbar: DEFAULT_INITIAL_TOOLBAR,
+            plots: [],
+            quests: [],
+            quiz_answered: [],
+            updated_at: new Date(),
+          },
+        },
+        { upsert: true },
+      )
+    }
+
     const token = jwt.sign(
-      { address: user.wallet_address || '', username: user.username, role: 'player' },
+      { address: addr, username: user.username, role: 'player' },
       CONFIG.JWT_SECRET,
       { expiresIn: '7d' },
     )
 
     res.json({
       success: true,
+      message: 'Đăng nhập thành công!',
       token,
-      user: { id: user.id, username: user.username, wallet_address: user.wallet_address },
+      user: {
+        id: user.id,
+        username: user.username,
+        wallet_address: addr,
+        address: addr,
+      },
     })
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message })
@@ -229,6 +332,7 @@ authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Respon
         id: user.id,
         username: user.username,
         wallet_address: user.wallet_address,
+        address: user.wallet_address,
         created_at: user.created_at,
         last_login: user.last_login,
       },

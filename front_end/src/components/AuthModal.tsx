@@ -6,6 +6,8 @@ export interface AuthUser {
   id: number
   username: string
   wallet_address?: string
+  address?: string
+  token?: string
 }
 
 interface AuthModalProps {
@@ -84,8 +86,15 @@ export function AuthModal({
         throw new Error(loginRes.error || 'Đăng nhập ví thất bại')
       }
 
+      const authUser: AuthUser = {
+        id: loginRes.user.id,
+        username: loginRes.user.username,
+        wallet_address: activeAccount,
+        address: activeAccount,
+        token: loginRes.token,
+      }
       setSuccessMessage(`Đăng nhập thành công! Chào mừng ${loginRes.user.username}!`)
-      onAuthSuccess(loginRes.user, loginRes.token)
+      onAuthSuccess(authUser, loginRes.token)
       setTimeout(() => {
         onClose()
       }, 700)
@@ -120,8 +129,16 @@ export function AuthModal({
         throw new Error(res.error || 'Tên đăng nhập hoặc mật khẩu không chính xác')
       }
 
+      const effectiveAddr = res.user.wallet_address || res.user.address || ''
+      const authUser: AuthUser = {
+        id: res.user.id,
+        username: res.user.username,
+        wallet_address: effectiveAddr,
+        address: effectiveAddr,
+        token: res.token,
+      }
       setSuccessMessage(`Đăng nhập thành công! Chào mừng ${res.user.username}!`)
-      onAuthSuccess(res.user, res.token)
+      onAuthSuccess(authUser, res.token)
       setTimeout(() => {
         onClose()
       }, 700)
@@ -164,8 +181,16 @@ export function AuthModal({
         throw new Error(res.error || 'Không thể tạo tài khoản')
       }
 
+      const effectiveAddr = res.user.wallet_address || res.user.address || ''
+      const authUser: AuthUser = {
+        id: res.user.id,
+        username: res.user.username,
+        wallet_address: effectiveAddr,
+        address: effectiveAddr,
+        token: res.token,
+      }
       setSuccessMessage(`Đăng ký thành công! Chào mừng ${res.user.username}!`)
-      onAuthSuccess(res.user, res.token)
+      onAuthSuccess(authUser, res.token)
       setTimeout(() => {
         onClose()
       }, 700)

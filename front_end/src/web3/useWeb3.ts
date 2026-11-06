@@ -138,11 +138,12 @@ export function useWeb3() {
     }
   }, [])
 
-  // Connect Wallet
+  // Connect Wallet & Mandatory MetaMask Signature Verification (SIWE)
   const connectWallet = useCallback(async (): Promise<string | null> => {
     const eth = getMetaMaskProvider()
     if (!eth) {
-      const msg = 'Không tìm thấy tiện ích ví MetaMask! Vui lòng cài đặt extension MetaMask hoặc kiểm tra xem bạn có đang ở tab ẩn danh (Incognito) hay không.'
+      const msg =
+        'Không tìm thấy tiện ích ví MetaMask! Vui lòng cài đặt extension MetaMask hoặc kiểm tra xem bạn có đang ở tab ẩn danh (Incognito) hay không.'
       setError(msg)
       alert(msg)
       return null
@@ -152,7 +153,18 @@ export function useWeb3() {
     setError(null)
 
     try {
-      // Gọi trực tiếp theo chuẩn EIP-1193 để đảm bảo trình duyệt kích hoạt extension popup
+      // 1. Luôn kích hoạt Popup MetaMask bằng wallet_requestPermissions
+      try {
+        await eth.request({
+          method: 'wallet_requestPermissions',
+          params: [{ eth_accounts: {} }],
+        })
+      } catch (permErr: any) {
+        if (permErr?.code === 4001) {
+          throw new Error('Bạn đã hủy yêu cầu kết nối trên ví MetaMask.')
+        }
+      }
+
       const accounts = (await eth.request({
         method: 'eth_requestAccounts',
       })) as string[]
@@ -162,16 +174,59 @@ export function useWeb3() {
       }
 
       const selectedAddress = accounts[0].toLowerCase()
+
+      // 2. Bắt buộc kích hoạt Popup Ký Xác Thực (Signature Verification) trên MetaMask
+      const nonceRes = await fetch(
+        `http://localhost:4000/api/auth/nonce?address=${selectedAddress}`,
+      )
+        .then((r) => r.json())
+        .catch(() => null)
+      const nonce = nonceRes?.nonce || `pixel2d-${Date.now()}`
+
+      const message = `Pixel2D GameFi Authentication\nAddress: ${selectedAddress}\nNonce: ${nonce}\nTimestamp: ${Date.now()}`
+      const provider = new BrowserProvider(eth)
+      const signer = await provider.getSigner()
+      const signature = await signer.signMessage(message)
+
+      // 3. Gửi chữ ký lên Backend để đăng ký / đồng bộ User trong MongoDB Atlas
+      const authRes = await fetch('http://localhost:4000/api/auth/login-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: selectedAddress,
+          signature,
+          message,
+        }),
+      }).then((r) => r.json())
+
+      if (!authRes.success) {
+        throw new Error(authRes.error || 'Xác thực chữ ký ví MetaMask thất bại')
+      }
+
       setAccount(selectedAddress)
+
+      const authUser = {
+        id: authRes.user.id,
+        username: authRes.user.username,
+        wallet_address: selectedAddress,
+        address: selectedAddress,
+        token: authRes.token,
+      }
 
       try {
         localStorage.setItem('pixel_wallet_address', selectedAddress)
         localStorage.removeItem('pixel_wallet_disconnected')
+        localStorage.setItem('pixel_farm_user', JSON.stringify(authUser))
+        localStorage.setItem('pixel_farm_jwt', authRes.token)
+        window.dispatchEvent(
+          new CustomEvent('auth-user-changed', {
+            detail: { user: authUser, token: authRes.token },
+          }),
+        )
       } catch {
         // ignore storage errors
       }
 
-      const provider = new BrowserProvider(eth)
       const network = await provider.getNetwork()
       setChainId(Number(network.chainId))
 
@@ -181,9 +236,14 @@ export function useWeb3() {
 
       let friendlyMsg = err?.message || 'Lỗi kết nối ví MetaMask'
       if (err?.code === -32002) {
-        friendlyMsg = 'Yêu cầu kết nối ví MetaMask đang chờ xử lý! Vui lòng bấm vào icon con Cáo 🦊 của MetaMask trên thanh tiện ích trình duyệt (hoặc biểu tượng mảnh ghép 🧩) để mở khóa và bấm Tiếp theo/Kết nối.'
-      } else if (err?.code === 4001) {
-        friendlyMsg = 'Bạn đã hủy yêu cầu kết nối ví MetaMask.'
+        friendlyMsg =
+          'Yêu cầu kết nối ví MetaMask đang chờ xử lý! Vui lòng bấm vào icon con Cáo 🦊 của MetaMask trên thanh tiện ích trình duyệt để mở khóa và bấm Tiếp theo/Kết nối.'
+      } else if (
+        err?.code === 4001 ||
+        friendlyMsg.includes('User rejected') ||
+        friendlyMsg.includes('user rejected')
+      ) {
+        friendlyMsg = 'Bạn đã hủy yêu cầu kết nối hoặc xác thực chữ ký trên ví MetaMask.'
       }
 
       setError(friendlyMsg)
@@ -202,6 +262,13 @@ export function useWeb3() {
     try {
       localStorage.removeItem('pixel_wallet_address')
       localStorage.setItem('pixel_wallet_disconnected', 'true')
+      localStorage.removeItem('pixel_farm_user')
+      localStorage.removeItem('pixel_farm_jwt')
+      window.dispatchEvent(
+        new CustomEvent('auth-user-changed', {
+          detail: { user: null, token: null },
+        }),
+      )
     } catch {
       // ignore storage errors
     }
@@ -288,7 +355,7 @@ export function useWeb3() {
     return () => clearTimeout(timer)
   }, [account, refreshBalances])
 
-  // Auto-connect check on page reload (F5) via silent eth_accounts
+  // Auto-connect check on page reload (F5) only if user was already verified with JWT
   useEffect(() => {
     const eth = getMetaMaskProvider()
     if (!eth) return
@@ -296,19 +363,24 @@ export function useWeb3() {
     const checkAuthorizedAccount = async () => {
       try {
         const wasDisconnected = localStorage.getItem('pixel_wallet_disconnected') === 'true'
-        if (wasDisconnected) return
+        const hasJwt = Boolean(localStorage.getItem('pixel_farm_jwt'))
+        const savedAddress = localStorage.getItem('pixel_wallet_address')
+
+        // Nếu người dùng đã ngắt kết nối hoặc chưa có JWT xác thực, giữ nguyên trạng thái chưa kết nối
+        if (wasDisconnected || !hasJwt || !savedAddress) {
+          setAccount(null)
+          return
+        }
 
         const provider = new BrowserProvider(eth)
         const accounts: string[] = await provider.send('eth_accounts', [])
-        if (accounts && accounts.length > 0) {
+        if (accounts && accounts.length > 0 && accounts[0].toLowerCase() === savedAddress.toLowerCase()) {
           const active = accounts[0].toLowerCase()
           setAccount(active)
-          localStorage.setItem('pixel_wallet_address', active)
           const network = await provider.getNetwork()
           setChainId(Number(network.chainId))
         } else {
-          setAccount(null)
-          localStorage.removeItem('pixel_wallet_address')
+          disconnect()
         }
       } catch (err: any) {
         console.warn('Silent auto-reconnect failed:', err?.message)
@@ -316,26 +388,16 @@ export function useWeb3() {
     }
 
     checkAuthorizedAccount()
-  }, [])
+  }, [disconnect])
 
   // Listen to MetaMask account / chain events
   useEffect(() => {
     const eth = getMetaMaskProvider()
     if (!eth || !eth.on) return
 
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        disconnect()
-      } else {
-        const active = accounts[0].toLowerCase()
-        setAccount(active)
-        try {
-          localStorage.setItem('pixel_wallet_address', active)
-          localStorage.removeItem('pixel_wallet_disconnected')
-        } catch {
-          // ignore
-        }
-      }
+    const handleAccountsChanged = (_accounts: string[]) => {
+      // Khi người dùng đổi tài khoản hoặc khóa ví, luôn ngắt kết nối để yêu cầu xác thực lại
+      disconnect()
     }
 
     const handleChainChanged = () => {

@@ -38,15 +38,15 @@ export interface TopRightHUDProps {
 
 export function TopRightHUD({
   account,
-  pixelBalance,
+  pixelBalance: _pixelBalance,
   ethBalance,
   isConnecting,
-  faucetLoading,
+  faucetLoading: _faucetLoading,
   currentUser,
   onOpenAuth,
   onConnect,
   onDisconnect,
-  onClaimFaucet,
+  onClaimFaucet: _onClaimFaucet,
   quests,
   completedQuestIds = [],
   onClaimQuest,
@@ -119,31 +119,9 @@ export function TopRightHUD({
           </span>
         </button>
 
-        {/* 4. Cụm Web3 MetaMask / $PIXEL Token */}
+        {/* 4. Cụm Web3 MetaMask */}
         {account ? (
           <div className="web3-badge-group">
-            {/* Pill số dư $PIXEL */}
-            <div className="web3-token-pill" title={`Số dư Token $PIXEL On-chain: ${pixelBalance}`}>
-              <span className="token-icon">💎</span>
-              <span className="token-val">{pixelBalance}</span>
-              <span className="token-symbol">$PIXEL</span>
-            </div>
-
-            {/* Faucet Pill Button */}
-            <button
-              type="button"
-              className="web3-faucet-btn"
-              onClick={() => {
-                soundEngine.playClick()
-                onClaimFaucet()
-              }}
-              disabled={faucetLoading}
-              title="Nhận 100 $PIXEL thử nghiệm từ Faucet Contract"
-            >
-              <span className="faucet-icon">{faucetLoading ? '⏳' : '💧'}</span>
-              <span className="faucet-text">Faucet</span>
-            </button>
-
             {/* Wallet Address Pill (Disconnect on click) */}
             <button
               type="button"
@@ -186,7 +164,7 @@ export function TopRightHUD({
         <QuestPanel
           quests={quests}
           completedIds={completedQuestIds}
-          isLoggedIn={Boolean(currentUser)}
+          isLoggedIn={Boolean(currentUser || account)}
           onOpenAuth={onOpenAuth}
           onClaimReward={onClaimQuest}
         />

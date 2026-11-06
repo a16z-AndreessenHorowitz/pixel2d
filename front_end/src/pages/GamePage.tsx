@@ -87,12 +87,34 @@ export function GamePage() {
   }, [web3Error])
 
   const [inventory, setInventory] = useState<InventorySlot[]>(() => {
-    return loadInventory(account || undefined).inventory
+    const raw = localStorage.getItem('pixel_farm_user')
+    const user = raw ? JSON.parse(raw) : null
+    const addr = user?.wallet_address || user?.address
+    return loadInventory(addr || undefined).inventory
   })
 
   const [toolbar, setToolbar] = useState<(InventoryItem | null)[]>(() => {
-    return loadInventory(account || undefined).toolbar
+    const raw = localStorage.getItem('pixel_farm_user')
+    const user = raw ? JSON.parse(raw) : null
+    const addr = user?.wallet_address || user?.address
+    return loadInventory(addr || undefined).toolbar
   })
+
+  // Listen to auth changes from web3 hook and auth modal
+  useEffect(() => {
+    const handleAuthUserChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<any>
+      if (customEvent.detail && typeof customEvent.detail === 'object' && 'user' in customEvent.detail) {
+        setCurrentUser(customEvent.detail.user)
+      } else {
+        setCurrentUser(customEvent.detail ?? null)
+      }
+    }
+    window.addEventListener('auth-user-changed', handleAuthUserChanged)
+    return () => window.removeEventListener('auth-user-changed', handleAuthUserChanged)
+  }, [])
+
+  const effectiveAddress = currentUser?.wallet_address || currentUser?.address || account
 
   /*
    * ---------------------------------------------------------
@@ -101,14 +123,17 @@ export function GamePage() {
    */
   useEffect(() => {
     const timer = setTimeout(() => {
-      const loaded = loadInventory(account || undefined)
+      const loaded = loadInventory(effectiveAddress || undefined)
       setInventory(loaded.inventory)
       setToolbar(loaded.toolbar)
     }, 0)
 
     // Optional: fetch game state from backend if running
-    if (account) {
-      fetch(`http://localhost:4000/api/game/state?address=${account}`)
+    if (effectiveAddress) {
+      const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
+      fetch(`http://localhost:4000/api/game/state?address=${effectiveAddress}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
         .then((res) => res.json())
         .then((data) => {
           if (data.success && data.state) {
@@ -134,11 +159,11 @@ export function GamePage() {
     }
 
     return () => clearTimeout(timer)
-  }, [account])
+  }, [effectiveAddress])
 
   useEffect(() => {
-    saveInventory(inventory, toolbar, account || undefined)
-  }, [inventory, toolbar, account])
+    saveInventory(inventory, toolbar, effectiveAddress || undefined)
+  }, [inventory, toolbar, effectiveAddress])
 
   /*
    * ---------------------------------------------------------
@@ -403,7 +428,7 @@ export function GamePage() {
 
     // 1. Coins reward
     if (reward.coins) {
-      if (!currentUser) {
+      if (!currentUser && !account) {
         alert('🔒 Bạn chưa đăng nhập! Vui lòng đăng nhập để lưu Coin từ nhiệm vụ NPC.')
         setAuthModalOpen(true)
       } else {
@@ -468,7 +493,7 @@ export function GamePage() {
       const crop = customEvent.detail?.crop
 
       if (crop) {
-        if (!currentUser) {
+        if (!currentUser && !account) {
           alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP từ thu hoạch.')
           setAuthModalOpen(true)
         } else {
@@ -501,7 +526,7 @@ export function GamePage() {
       const coinsReceived = customEvent.detail?.coins
       const fishObj = customEvent.detail?.fish
 
-      if (!currentUser) {
+      if (!currentUser && !account) {
         alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP khi câu cá.')
         setAuthModalOpen(true)
       } else {
@@ -537,7 +562,7 @@ export function GamePage() {
   }
 
   const handleSellItem = (itemId: string, quantity: number, pricePerUnit: number) => {
-    if (!currentUser) {
+    if (!currentUser && !account) {
       alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để bán nông sản nhận Coin.')
       setAuthModalOpen(true)
       return
@@ -606,7 +631,10 @@ export function GamePage() {
   }
 
   const handleClaimQuest = async (questId: number, rewardCoins: number) => {
-    if (!currentUser) {
+    const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
+    const effectiveAddress = currentUser?.wallet_address || currentUser?.address || account
+
+    if (!currentUser && !account && !effectiveAddress) {
       alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin thưởng nhiệm vụ.')
       setAuthModalOpen(true)
       return
@@ -618,11 +646,11 @@ export function GamePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(currentUser.token ? { Authorization: `Bearer ${currentUser.token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           questId,
-          address: currentUser.address,
+          address: effectiveAddress,
         }),
       }).then((r) => r.json())
 
@@ -836,6 +864,11 @@ export function GamePage() {
     try {
       localStorage.setItem('pixel_farm_user', JSON.stringify(user))
       localStorage.setItem('pixel_farm_jwt', token)
+      window.dispatchEvent(
+        new CustomEvent('auth-user-changed', {
+          detail: { user, token },
+        }),
+      )
     } catch {
       // ignore
     }
@@ -843,13 +876,19 @@ export function GamePage() {
 
   const handleLogout = useCallback(() => {
     setCurrentUser(null)
+    disconnect()
     try {
       localStorage.removeItem('pixel_farm_user')
       localStorage.removeItem('pixel_farm_jwt')
+      window.dispatchEvent(
+        new CustomEvent('auth-user-changed', {
+          detail: { user: null, token: null },
+        }),
+      )
     } catch {
       // ignore
     }
-  }, [])
+  }, [disconnect])
 
   return (
     <section className="game-page" aria-label="Pixel Farm game">
@@ -878,7 +917,7 @@ export function GamePage() {
         isLoggedIn={Boolean(currentUser)}
         onOpenAuth={() => setAuthModalOpen(true)}
         onOpenGameFiHub={() => setGameFiHubOpen(true)}
-        onOpenNftShop={() => setNftShopOpen(true)}
+        onOpenNftShop={() => setShopOpen(true)}
         onOpenClaim={() => setClaimModalOpen(true)}
         onOpenShop={() => setShopOpen(true)}
       />

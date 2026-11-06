@@ -113,20 +113,28 @@ questRouter.post('/claim', optionalAuth, async (req: AuthenticatedRequest, res: 
   const normalizedAddr = address.toLowerCase()
 
   try {
-    let state = await GameStateModel.findOne({ wallet_address: normalizedAddr })
+    let state = await GameStateModel.findOneAndUpdate(
+      { wallet_address: normalizedAddr },
+      {
+        $setOnInsert: {
+          wallet_address: normalizedAddr,
+          coins: 100,
+          energy: 100,
+          max_energy: 100,
+          level: 1,
+          xp: 0,
+          inventory: [],
+          toolbar: [],
+          plots: [],
+          quests: [],
+          quiz_answered: [],
+          updated_at: new Date(),
+        },
+      },
+      { upsert: true, returnDocument: 'after' },
+    )
     if (!state) {
-      state = await GameStateModel.create({
-        wallet_address: normalizedAddr,
-        coins: 100,
-        energy: 100,
-        max_energy: 100,
-        level: 1,
-        xp: 0,
-        inventory: [],
-        toolbar: [],
-        plots: [],
-        quests: [],
-      })
+      return res.status(500).json({ success: false, error: 'Không thể khởi tạo GameState' })
     }
 
     const currentCompleted = Array.isArray(state.quests)
