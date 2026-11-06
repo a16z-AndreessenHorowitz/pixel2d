@@ -21,7 +21,7 @@ export const quests: Quest[] = [
   {
     id: 3,
     title: 'Ghé thăm bảng đổi thưởng',
-    description: 'Kiểm tra các vật phẩm có thể đổi bằng coin trong game.',
+    description: 'Kiểm tra tỷ giá quy đổi 1,000 Coins = 10 $PIXEL on-chain.',
     rewardCoins: 50,
   },
   {
@@ -29,5 +29,11 @@ export const quests: Quest[] = [
     title: 'Nâng cấp kho nhỏ',
     description: 'Mở thêm chỗ chứa nông sản để nhận nhiều nhiệm vụ hơn.',
     rewardCoins: 180,
+  },
+  {
+    id: 5,
+    title: 'Thử thách nông dân chăm chỉ',
+    description: 'Cày cuốc tích lũy và hoàn thành mùa vụ lớn để nhận 1,000 Coin đổi token $PIXEL.',
+    rewardCoins: 1000,
   },
 ]

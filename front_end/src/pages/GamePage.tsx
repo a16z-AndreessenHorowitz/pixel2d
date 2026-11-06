@@ -118,6 +118,12 @@ export function GamePage() {
             if (typeof data.state.max_energy === 'number') setMaxEnergy(data.state.max_energy)
             if (typeof data.state.level === 'number') setLevel(data.state.level)
             if (typeof data.state.xp === 'number') setXp(data.state.xp)
+            if (Array.isArray(data.state.quests)) {
+              const ids = data.state.quests
+                .map((q: any) => (typeof q === 'number' ? q : q?.id))
+                .filter((id: any) => typeof id === 'number')
+              if (ids.length > 0) setCompletedQuestIds(ids)
+            }
           }
         })
         .catch(() => {
@@ -597,17 +603,47 @@ export function GamePage() {
     })
   }
 
-  const handleClaimQuest = (questId: number, rewardCoins: number) => {
+  const handleClaimQuest = async (questId: number, rewardCoins: number) => {
     if (!currentUser) {
       alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin thưởng nhiệm vụ.')
       setAuthModalOpen(true)
       return
     }
     if (completedQuestIds.includes(questId)) return
-    setCoins((prev) => prev + rewardCoins)
-    setCompletedQuestIds((prev) => [...prev, questId])
-    soundEngine.playCoin()
-    addXP(50)
+
+    try {
+      const res = await fetch('http://localhost:4000/api/quests/claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(currentUser.token ? { Authorization: `Bearer ${currentUser.token}` } : {}),
+        },
+        body: JSON.stringify({
+          questId,
+          address: currentUser.address,
+        }),
+      }).then((r) => r.json())
+
+      if (res.success && res.data) {
+        setCoins(res.data.newCoins)
+        if (Array.isArray(res.data.completedQuestIds)) {
+          setCompletedQuestIds(res.data.completedQuestIds)
+        } else {
+          setCompletedQuestIds((prev) => [...prev, questId])
+        }
+        if (typeof res.data.newLevel === 'number') setLevel(res.data.newLevel)
+        if (typeof res.data.newXp === 'number') setXp(res.data.newXp)
+        soundEngine.playCoin()
+        alert(res.message || `🎉 Đã nhận ${rewardCoins} Coins!`)
+      } else {
+        alert(res.error || 'Không thể nhận thưởng nhiệm vụ')
+      }
+    } catch {
+      setCoins((prev) => prev + rewardCoins)
+      setCompletedQuestIds((prev) => [...prev, questId])
+      soundEngine.playCoin()
+      addXP(50)
+    }
   }
 
   /*

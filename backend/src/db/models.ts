@@ -84,6 +84,7 @@ export const ShopItemModel = mongoose.model<IShopItem>('ShopItem', ShopItemSchem
 export interface IClaim extends Document {
   wallet_address: string
   coin_amount: number
+  pixel_amount?: number
   nonce: number
   signature: string
   status: string
@@ -93,6 +94,7 @@ export interface IClaim extends Document {
 const ClaimSchema = new Schema<IClaim>({
   wallet_address: { type: String, required: true, index: true, lowercase: true },
   coin_amount: { type: Number, required: true },
+  pixel_amount: { type: Number, default: 0 },
   nonce: { type: Number, required: true, unique: true, index: true },
   signature: { type: String, required: true },
   status: { type: String, default: 'pending' },

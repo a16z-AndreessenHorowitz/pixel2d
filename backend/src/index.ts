@@ -7,6 +7,7 @@ import { gameRouter } from './routes/game.js'
 import { shopRouter } from './routes/shop.js'
 import { web3Router } from './routes/web3.js'
 import { transactionsRouter } from './routes/transactions.js'
+import { questRouter } from './routes/quests.js'
 
 const app = express()
 
@@ -30,6 +31,8 @@ app.use(express.json())
 // Routes
 app.use('/api/auth', authRouter)
 app.use('/api/game', gameRouter)
+app.use('/api/quests', questRouter)
+app.use('/api/game/quests', questRouter)
 app.use('/api/shop', shopRouter)
 app.use('/api/web3', web3Router)
 app.use('/api/transactions', transactionsRouter)
