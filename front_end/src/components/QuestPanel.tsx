@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Quest } from '../mock-data/quests'
+import { showGameAlert } from './NotificationModal'
 import './QuestPanel.css'
 
 interface QuestPanelProps {
@@ -22,9 +23,24 @@ export function QuestPanel({
   const done = completedIds.length
 
   const handleClaim = (quest: Quest) => {
-    if (completedIds.includes(quest.id)) return
+    if (completedIds.includes(quest.id)) {
+      showGameAlert({
+        title: 'Nhiệm Vụ Đã Nhận',
+        message: 'Bạn đã hoàn tất và nhận thưởng cho nhiệm vụ này rồi!',
+        type: 'info',
+        icon: '✓',
+      })
+      return
+    }
     if (!isLoggedIn) {
-      onOpenAuth?.()
+      showGameAlert({
+        title: 'Yêu Cầu Đăng Nhập',
+        message: 'Vui lòng đăng nhập hoặc kết nối ví để nhận thưởng Coin từ nhiệm vụ này!',
+        type: 'warning',
+        icon: '🔒',
+        confirmText: 'Đăng nhập ngay',
+        onConfirm: () => onOpenAuth?.(),
+      })
       return
     }
     onClaimReward?.(quest.id, quest.rewardCoins)

@@ -61,13 +61,21 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 if (process.env.NODE_ENV !== 'test') {
   connectDatabase()
     .then(() => {
-      app.listen(CONFIG.PORT, () => {
+      const server = app.listen(CONFIG.PORT, () => {
         console.log(`====================================================`)
         console.log(`🌾 Pixel2D GameFi Backend Server running on port ${CONFIG.PORT}`)
         console.log(`🔑 ECDSA Signer Address: ${CONFIG.SIGNER_ADDRESS}`)
         console.log(`🛡️  Claim Cap: ${CONFIG.CLAIM_CAP} Coins | Cooldown: ${CONFIG.CLAIM_COOLDOWN_SECONDS}s`)
         console.log(`🍃 Database: MongoDB`)
         console.log(`====================================================`)
+      })
+
+      server.on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`❌ Cổng ${CONFIG.PORT} đang bị chiếm dụng bởi tiến trình khác! Vui lòng đóng ứng dụng đang chạy cổng ${CONFIG.PORT} rồi thử lại.`)
+        } else {
+          console.error('Server listen error:', err)
+        }
       })
     })
     .catch((err) => {

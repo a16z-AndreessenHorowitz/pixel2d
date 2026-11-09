@@ -5,6 +5,7 @@ import {
   PIXEL_TOKEN_ABI,
   CHAIN_CONFIG,
 } from './abis/contracts'
+import { showGameAlert } from '../components/NotificationModal'
 
 export interface Web3State {
   account: string | null
@@ -145,7 +146,12 @@ export function useWeb3() {
       const msg =
         'Không tìm thấy tiện ích ví MetaMask! Vui lòng cài đặt extension MetaMask hoặc kiểm tra xem bạn có đang ở tab ẩn danh (Incognito) hay không.'
       setError(msg)
-      alert(msg)
+      showGameAlert({
+        title: 'Ví MetaMask',
+        message: msg,
+        type: 'warning',
+        icon: '🦊',
+      })
       return null
     }
 
@@ -247,7 +253,12 @@ export function useWeb3() {
       }
 
       setError(friendlyMsg)
-      alert(friendlyMsg)
+      showGameAlert({
+        title: 'Thông Báo Ví',
+        message: friendlyMsg,
+        type: 'info',
+        icon: '🦊',
+      })
       return null
     } finally {
       setIsConnecting(false)

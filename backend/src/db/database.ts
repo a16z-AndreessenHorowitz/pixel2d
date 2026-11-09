@@ -15,8 +15,8 @@ export async function connectDatabase(): Promise<typeof mongoose> {
   try {
     console.log(`[Database] Attempting connection to MongoDB at: ${CONFIG.MONGODB_URI}...`)
     await mongoose.connect(CONFIG.MONGODB_URI, {
-      serverSelectionTimeoutMS: 2000,
-      connectTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
     })
     console.log(`🍃 Connected successfully to MongoDB: ${CONFIG.MONGODB_URI}`)
     await seedShopItems()

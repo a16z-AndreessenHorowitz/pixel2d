@@ -8,6 +8,7 @@ import { AuthModal, type AuthUser } from '../components/AuthModal'
 import { DialogueModal } from '../components/DialogueModal'
 import { GameFiHubModal } from '../components/GameFiHubModal'
 import { QuizModal } from '../components/QuizModal'
+import { NotificationModal, showGameAlert } from '../components/NotificationModal'
 import type { DialogueStep } from '../data/dialogues'
 import { soundEngine } from '../audio/SoundEngine'
 import { useWeb3 } from '../web3/useWeb3'
@@ -429,10 +430,25 @@ export function GamePage() {
     // 1. Coins reward
     if (reward.coins) {
       if (!currentUser && !account) {
-        alert('🔒 Bạn chưa đăng nhập! Vui lòng đăng nhập để lưu Coin từ nhiệm vụ NPC.')
-        setAuthModalOpen(true)
+        showGameAlert({
+          title: 'Yêu Cầu Đăng Nhập',
+          message: 'Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để lưu Coin từ nhiệm vụ NPC.',
+          type: 'warning',
+          icon: '🔒',
+          confirmText: 'Đăng nhập ngay',
+          onConfirm: () => setAuthModalOpen(true),
+        })
       } else {
         setCoins((prev) => prev + reward.coins!)
+        soundEngine.playCoin()
+        const npcName = activeNpcId === 'barney' ? 'Bác Barney' : 'Cô Hazel'
+        showGameAlert({
+          title: '🎉 Nhận Thưởng Nhiệm Vụ NPC',
+          message: `Chúc mừng! Bạn đã nhận được +${reward.coins} Coins từ ${npcName}!`,
+          type: 'success',
+          icon: '🪙',
+          confirmText: 'Tuyệt vời',
+        })
       }
     }
 
@@ -441,6 +457,14 @@ export function GamePage() {
       const def = ITEM_DEFINITIONS[reward.itemId as ToolId]
       if (def) {
         addItem({ ...def, quantity: reward.quantity })
+        const npcName = activeNpcId === 'barney' ? 'Bác Barney' : 'Cô Hazel'
+        showGameAlert({
+          title: '🎁 Quà Tặng Nhiệm Vụ',
+          message: `${npcName} đã tặng bạn ${reward.quantity}x ${def.label}! Vật phẩm đã được cất vào kho đồ.`,
+          type: 'success',
+          icon: '🎒',
+          confirmText: 'Cảm ơn!',
+        })
       }
     }
 
@@ -494,8 +518,14 @@ export function GamePage() {
 
       if (crop) {
         if (!currentUser && !account) {
-          alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP từ thu hoạch.')
-          setAuthModalOpen(true)
+          showGameAlert({
+            title: 'Yêu Cầu Đăng Nhập',
+            message: 'Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP từ thu hoạch nông sản.',
+            type: 'warning',
+            icon: '🔒',
+            confirmText: 'Đăng nhập ngay',
+            onConfirm: () => setAuthModalOpen(true),
+          })
         } else {
           if (typeof crop.harvestCoins === 'number') {
             setCoins((prev) => prev + crop.harvestCoins)
@@ -527,8 +557,14 @@ export function GamePage() {
       const fishObj = customEvent.detail?.fish
 
       if (!currentUser && !account) {
-        alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP khi câu cá.')
-        setAuthModalOpen(true)
+        showGameAlert({
+          title: 'Yêu Cầu Đăng Nhập',
+          message: 'Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP khi câu cá.',
+          type: 'warning',
+          icon: '🔒',
+          confirmText: 'Đăng nhập ngay',
+          onConfirm: () => setAuthModalOpen(true),
+        })
       } else {
         if (typeof coinsReceived === 'number') {
           setCoins((prev) => prev + coinsReceived)
@@ -563,8 +599,14 @@ export function GamePage() {
 
   const handleSellItem = (itemId: string, quantity: number, pricePerUnit: number) => {
     if (!currentUser && !account) {
-      alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để bán nông sản nhận Coin.')
-      setAuthModalOpen(true)
+      showGameAlert({
+        title: 'Yêu Cầu Đăng Nhập',
+        message: 'Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để bán nông sản nhận Coin.',
+        type: 'warning',
+        icon: '🔒',
+        confirmText: 'Đăng nhập ngay',
+        onConfirm: () => setAuthModalOpen(true),
+      })
       return
     }
 
@@ -635,11 +677,25 @@ export function GamePage() {
     const effectiveAddress = currentUser?.wallet_address || currentUser?.address || account
 
     if (!currentUser && !account && !effectiveAddress) {
-      alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin thưởng nhiệm vụ.')
-      setAuthModalOpen(true)
+      showGameAlert({
+        title: 'Yêu Cầu Đăng Nhập',
+        message: 'Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập hoặc kết nối ví để nhận Coin thưởng nhiệm vụ.',
+        type: 'warning',
+        icon: '🔒',
+        confirmText: 'Đăng nhập ngay',
+        onConfirm: () => setAuthModalOpen(true),
+      })
       return
     }
-    if (completedQuestIds.includes(questId)) return
+    if (completedQuestIds.includes(questId)) {
+      showGameAlert({
+        title: 'Nhiệm Vụ Đã Nhận',
+        message: 'Bạn đã hoàn tất và nhận thưởng cho nhiệm vụ này rồi!',
+        type: 'info',
+        icon: '✓',
+      })
+      return
+    }
 
     try {
       const res = await fetch('http://localhost:4000/api/quests/claim', {
@@ -664,15 +720,33 @@ export function GamePage() {
         if (typeof res.data.newLevel === 'number') setLevel(res.data.newLevel)
         if (typeof res.data.newXp === 'number') setXp(res.data.newXp)
         soundEngine.playCoin()
-        alert(res.message || `🎉 Đã nhận ${rewardCoins} Coins!`)
+        showGameAlert({
+          title: '🎉 Nhận Thưởng Nhiệm Vụ!',
+          message: res.message || `Chúc mừng! Bạn đã hoàn thành nhiệm vụ và nhận thành công +${rewardCoins} Coins!`,
+          type: 'success',
+          icon: '🎁',
+          confirmText: 'Tuyệt vời',
+        })
       } else {
-        alert(res.error || 'Không thể nhận thưởng nhiệm vụ')
+        showGameAlert({
+          title: 'Thông Báo Nhiệm Vụ',
+          message: res.error || 'Không thể nhận thưởng nhiệm vụ lúc này.',
+          type: 'error',
+          icon: '⚠️',
+        })
       }
     } catch {
       setCoins((prev) => prev + rewardCoins)
       setCompletedQuestIds((prev) => [...prev, questId])
       soundEngine.playCoin()
       addXP(50)
+      showGameAlert({
+        title: '🎉 Nhận Thưởng Nhiệm Vụ!',
+        message: `Chúc mừng! Bạn đã hoàn thành nhiệm vụ và nhận thành công +${rewardCoins} Coins!`,
+        type: 'success',
+        icon: '🎁',
+        confirmText: 'Tuyệt vời',
+      })
     }
   }
 
@@ -690,9 +764,19 @@ export function GamePage() {
     try {
       await claimFaucet()
       soundEngine.playCoin()
-      alert('🎉 Đã nhận 100 $PIXEL thử nghiệm từ Faucet Contract!')
+      showGameAlert({
+        title: 'Faucet On-Chain',
+        message: '🎉 Đã nhận 100 $PIXEL thử nghiệm từ Faucet Contract!',
+        type: 'success',
+        icon: '💎',
+      })
     } catch (err: any) {
-      alert('Lỗi Faucet: ' + (err?.reason || err?.message || 'Không thể nhận faucet'))
+      showGameAlert({
+        title: 'Lỗi Faucet',
+        message: 'Lỗi Faucet: ' + (err?.reason || err?.message || 'Không thể nhận faucet'),
+        type: 'error',
+        icon: '❌',
+      })
     } finally {
       setFaucetLoading(false)
     }
@@ -706,7 +790,12 @@ export function GamePage() {
   const handleQuizReward = (rewardCoins: number, rewardXp: number, newTotalCoins: number) => {
     setCoins(newTotalCoins)
     addXP(rewardXp)
-    alert(`🎉 Bạn đã nhận được +${rewardCoins} Coins từ bài học Blockchain!`)
+    showGameAlert({
+      title: 'Lớp Học Blockchain',
+      message: `🎉 Bạn đã nhận được +${rewardCoins} Coins từ bài học Blockchain!`,
+      type: 'success',
+      icon: '🎓',
+    })
   }
 
   /*
@@ -1006,6 +1095,9 @@ export function GamePage() {
         onOpenAuth={() => setAuthModalOpen(true)}
         onRewardEarned={handleQuizReward}
       />
+
+      {/* Global In-Game Notification & Alert Popup */}
+      <NotificationModal />
 
       {/* =====================================================
           INVENTORY POPUP

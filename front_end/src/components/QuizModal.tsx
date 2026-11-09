@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { soundEngine } from '../audio/SoundEngine'
+import { showGameAlert } from './NotificationModal'
 import './QuizModal.css'
 
 export interface QuizModalProps {
@@ -91,8 +92,14 @@ export function QuizModal({
     if (!currentQ || selectedOption === null) return
 
     if (!userAddress) {
-      alert('🔒 Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận thưởng Coin.')
-      onOpenAuth?.()
+      showGameAlert({
+        title: 'Yêu Cầu Đăng Nhập',
+        message: 'Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận thưởng Coin từ bài trắc nghiệm.',
+        type: 'warning',
+        icon: '🔒',
+        confirmText: 'Đăng nhập ngay',
+        onConfirm: () => onOpenAuth?.(),
+      })
       return
     }
 
@@ -136,11 +143,21 @@ export function QuizModal({
           })
         }
       } else {
-        alert(res.error || 'Lỗi khi gửi đáp án')
+        showGameAlert({
+          title: 'Kết Quả Trắc Nghiệm',
+          message: res.error || 'Lỗi khi gửi đáp án',
+          type: 'error',
+          icon: '❌',
+        })
       }
     } catch (err: any) {
       console.error('Lỗi nộp bài trắc nghiệm:', err)
-      alert('Không thể kết nối máy chủ để nộp bài!')
+      showGameAlert({
+        title: 'Lỗi Kết Nối',
+        message: 'Không thể kết nối máy chủ để nộp bài!',
+        type: 'error',
+        icon: '⚠️',
+      })
     } finally {
       setSubmitting(false)
     }

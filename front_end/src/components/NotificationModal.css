@@ -1,0 +1,230 @@
+/* =========================================================
+   NotificationModal.css – Pixel2D Retro Game Popup
+   Custom, styled in-game notification & prompt dialog
+   ========================================================= */
+
+.game-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.75);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 9999;
+  animation: game-popup-fade 0.2s ease-out;
+}
+
+@keyframes game-popup-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.game-popup-box {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: #0f172a;
+  border-radius: 14px;
+  border: 2px solid #3b82f6;
+  box-shadow:
+    0 20px 45px rgba(0, 0, 0, 0.9),
+    0 0 25px rgba(59, 130, 246, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: game-popup-pop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes game-popup-pop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ── Type Variations ── */
+.game-popup-box--info {
+  border-color: #38bdf8;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.9), 0 0 25px rgba(56, 189, 248, 0.3);
+}
+.game-popup-box--info .game-popup-header-accent {
+  background: linear-gradient(90deg, #0284c7, #38bdf8);
+}
+
+.game-popup-box--success {
+  border-color: #10b981;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.9), 0 0 25px rgba(16, 185, 129, 0.3);
+}
+.game-popup-box--success .game-popup-header-accent {
+  background: linear-gradient(90deg, #059669, #10b981);
+}
+
+.game-popup-box--warning {
+  border-color: #f59e0b;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.9), 0 0 25px rgba(245, 158, 11, 0.3);
+}
+.game-popup-box--warning .game-popup-header-accent {
+  background: linear-gradient(90deg, #d97706, #fbbf24);
+}
+
+.game-popup-box--error {
+  border-color: #ef4444;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.9), 0 0 25px rgba(239, 68, 68, 0.3);
+}
+.game-popup-box--error .game-popup-header-accent {
+  background: linear-gradient(90deg, #dc2626, #f87171);
+}
+
+/* ── Header Accent Line ── */
+.game-popup-header-accent {
+  height: 4px;
+  width: 100%;
+}
+
+/* ── Header ── */
+.game-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 8px 18px;
+}
+
+.game-popup-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-popup-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.game-popup-title {
+  margin: 0;
+  font-family: monospace, 'Courier New', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+.game-popup-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.game-popup-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* ── Body ── */
+.game-popup-body {
+  padding: 8px 20px 18px 20px;
+}
+
+.game-popup-message {
+  margin: 0;
+  font-family: monospace, 'Courier New', sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  word-break: break-word;
+  white-space: pre-line;
+}
+
+/* ── Footer ── */
+.game-popup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px;
+  background: rgba(15, 23, 42, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.game-popup-btn {
+  font-family: monospace, 'Courier New', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.game-popup-btn--secondary {
+  background: rgba(51, 65, 85, 0.8);
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+.game-popup-btn--secondary:hover {
+  background: #475569;
+  color: #ffffff;
+}
+
+.game-popup-btn--primary {
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.game-popup-btn--info {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border-color: #38bdf8;
+}
+.game-popup-btn--info:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  transform: translateY(-1px);
+}
+
+.game-popup-btn--success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #6ee7b7;
+}
+.game-popup-btn--success:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+}
+
+.game-popup-btn--warning {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  border-color: #fcd34d;
+}
+.game-popup-btn--warning:hover {
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+  transform: translateY(-1px);
+}
+
+.game-popup-btn--error {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  border-color: #fca5a5;
+}
+.game-popup-btn--error:hover {
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+  transform: translateY(-1px);
+}
