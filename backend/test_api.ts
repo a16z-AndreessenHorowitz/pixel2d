@@ -68,19 +68,19 @@ async function runTests() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        coins: 150,
+        coins: 1500,
         energy: 98,
         level: 2,
         xp: 30,
       }),
     }).then((r) => r.json())
 
-    if (!saveRes.success || saveRes.state.coins !== 150) {
+    if (!saveRes.success || saveRes.state.coins !== 1500) {
       throw new Error('Game state save failed: ' + JSON.stringify(saveRes))
     }
 
     const stateRes = await fetch(`${baseUrl}/api/game/state?address=${address}`).then((r) => r.json())
-    if (!stateRes.success || stateRes.state.coins !== 150) {
+    if (!stateRes.success || stateRes.state.coins !== 1500) {
       throw new Error('Game state fetch failed: ' + JSON.stringify(stateRes))
     }
     console.log('   ✅ Game state sync OK. Coins:', stateRes.state.coins, '| Energy:', stateRes.state.energy)
@@ -99,7 +99,7 @@ async function runTests() {
       }),
     }).then((r) => r.json())
 
-    if (!buyRes.success || buyRes.remainingCoins !== 140) {
+    if (!buyRes.success || buyRes.remainingCoins !== 1490) {
       throw new Error('Shop purchase failed: ' + JSON.stringify(buyRes))
     }
     console.log('   ✅ Purchase successful. Remaining coins:', buyRes.remainingCoins)
@@ -113,7 +113,7 @@ async function runTests() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        amount: 50,
+        amount: 1000,
       }),
     }).then((r) => r.json())
 

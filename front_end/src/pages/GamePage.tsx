@@ -9,31 +9,25 @@ import { DialogueModal } from '../components/DialogueModal'
 import { GameFiHubModal } from '../components/GameFiHubModal'
 import { QuizModal } from '../components/QuizModal'
 import { NotificationModal, showGameAlert } from '../components/NotificationModal'
+import { VirtualDpad } from '../components/VirtualDpad'
 import type { DialogueStep } from '../data/dialogues'
 import { soundEngine } from '../audio/SoundEngine'
 import { useWeb3 } from '../web3/useWeb3'
 import { player } from '../mock-data/player'
 import {
-  DEFAULT_INVENTORY,
-  DEFAULT_TOOLBAR,
   EDIBLE_ITEMS,
   INVENTORY_SIZE,
   ITEM_DEFINITIONS,
-  loadInventory,
-  saveInventory,
-  type InventoryItem,
-  type InventoryItemId,
-  type InventorySlot,
 } from '../game/inventory/inventory'
 import { quests } from '../mock-data/quests'
+import { useInventoryManager, type ToolId } from '../hooks/useInventoryManager'
+import { usePhaserGameBridge } from '../hooks/usePhaserGameBridge'
+import { useGameKeyboardShortcuts } from '../hooks/useGameKeyboardShortcuts'
 import './GamePage.css'
-
-type ToolId = InventoryItemId
 
 const TOOL_KEYS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 export function GamePage() {
-  const [selectedTool, setSelectedTool] = useState<ToolId>('watering-can')
   const [coins, setCoins] = useState(player.coins)
   const [energy, setEnergy] = useState(100)
   const [maxEnergy, setMaxEnergy] = useState(100)
@@ -42,8 +36,8 @@ export function GamePage() {
   const [xp, setXp] = useState(0)
   const [levelUpMessage, setLevelUpMessage] = useState<string | null>(null)
   const [energyAlert, setEnergyAlert] = useState<{ message: string; type: 'error' | 'success' } | null>(null)
-  const [selectedInvIndex, setSelectedInvIndex] = useState<number | null>(null)
 
+  // Modals state
   const [dialogueOpen, setDialogueOpen] = useState(false)
   const [activeNpcId, setActiveNpcId] = useState('barney')
   const [gameFiHubOpen, setGameFiHubOpen] = useState(false)
@@ -52,6 +46,9 @@ export function GamePage() {
   const [claimModalOpen, setClaimModalOpen] = useState(false)
   const [quizModalOpen, setQuizModalOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [faucetLoading, setFaucetLoading] = useState(false)
+  const [completedQuestIds, setCompletedQuestIds] = useState<number[]>([1])
+
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     try {
       const raw = localStorage.getItem('pixel_farm_user')
@@ -60,8 +57,6 @@ export function GamePage() {
       return null
     }
   })
-  const [faucetLoading, setFaucetLoading] = useState(false)
-  const [completedQuestIds, setCompletedQuestIds] = useState<number[]>([1])
 
   const {
     account,
@@ -87,21 +82,65 @@ export function GamePage() {
     }
   }, [web3Error])
 
-  const [inventory, setInventory] = useState<InventorySlot[]>(() => {
-    const raw = localStorage.getItem('pixel_farm_user')
-    const user = raw ? JSON.parse(raw) : null
-    const addr = user?.wallet_address || user?.address
-    return loadInventory(addr || undefined).inventory
+  const effectiveAddress = currentUser?.wallet_address || currentUser?.address || account
+
+  // 1. Hook quản lý Kho đồ & Toolbar
+  const {
+    inventory,
+    setInventory,
+    toolbar,
+    setToolbar,
+    selectedTool,
+    selectedInvIndex,
+    setSelectedInvIndex,
+    selectTool,
+    addItem,
+    consumeSeed,
+    handleEatItem,
+    moveInventoryToToolbar,
+    moveToolbarToInventory,
+    moveInventoryItem,
+    resetInventory,
+    handleInventoryDragStart,
+    handleToolbarDragStart,
+    readDragData,
+  } = useInventoryManager({
+    effectiveAddress,
+    energy,
+    maxEnergy,
+    setEnergy,
+    setEnergyAlert,
   })
 
-  const [toolbar, setToolbar] = useState<(InventoryItem | null)[]>(() => {
-    const raw = localStorage.getItem('pixel_farm_user')
-    const user = raw ? JSON.parse(raw) : null
-    const addr = user?.wallet_address || user?.address
-    return loadInventory(addr || undefined).toolbar
+  // 2. Hook cầu nối sự kiện giữa Phaser Game và React State
+  const { addXP } = usePhaserGameBridge({
+    currentUser,
+    account,
+    energyRef,
+    setEnergy,
+    setMaxEnergy,
+    setCoins,
+    setXp,
+    setLevel,
+    setLevelUpMessage,
+    setEnergyAlert,
+    setActiveNpcId,
+    setDialogueOpen,
+    setAuthModalOpen,
+    consumeSeed,
+    addItem,
   })
 
-  // Listen to auth changes from web3 hook and auth modal
+  // 3. Hook bắt phím tắt bàn phím (1-8, I, H, Q)
+  useGameKeyboardShortcuts({
+    toolbar,
+    selectTool,
+    setInventoryOpen,
+    setGameFiHubOpen,
+    setQuizModalOpen,
+  })
+
+  // Lắng nghe sự kiện đăng nhập / đăng xuất
   useEffect(() => {
     const handleAuthUserChanged = (event: Event) => {
       const customEvent = event as CustomEvent<any>
@@ -115,21 +154,27 @@ export function GamePage() {
     return () => window.removeEventListener('auth-user-changed', handleAuthUserChanged)
   }, [])
 
-  const effectiveAddress = currentUser?.wallet_address || currentUser?.address || account
-
-  /*
-   * ---------------------------------------------------------
-   * Sync inventory and coins with wallet address & backend
-   * ---------------------------------------------------------
-   */
+  // BGM Retro âm thanh nền khi click lần đầu
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const loaded = loadInventory(effectiveAddress || undefined)
-      setInventory(loaded.inventory)
-      setToolbar(loaded.toolbar)
-    }, 0)
+    const handleFirstGesture = () => {
+      if (soundEngine.getBgmEnabled()) {
+        soundEngine.startBGM()
+      }
+      window.removeEventListener('pointerdown', handleFirstGesture)
+      window.removeEventListener('keydown', handleFirstGesture)
+    }
 
-    // Optional: fetch game state from backend if running
+    window.addEventListener('pointerdown', handleFirstGesture)
+    window.addEventListener('keydown', handleFirstGesture)
+    return () => {
+      window.removeEventListener('pointerdown', handleFirstGesture)
+      window.removeEventListener('keydown', handleFirstGesture)
+      soundEngine.stopBGM()
+    }
+  }, [])
+
+  // Đồng bộ trạng thái Game từ Backend nếu có
+  useEffect(() => {
     if (effectiveAddress) {
       const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
       fetch(`http://localhost:4000/api/game/state?address=${effectiveAddress}`, {
@@ -154,251 +199,11 @@ export function GamePage() {
             }
           }
         })
-        .catch(() => {
-          // Backend optional fallback
-        })
+        .catch(() => {})
     }
+  }, [effectiveAddress, currentUser?.token])
 
-    return () => clearTimeout(timer)
-  }, [effectiveAddress])
-
-  useEffect(() => {
-    saveInventory(inventory, toolbar, effectiveAddress || undefined)
-  }, [inventory, toolbar, effectiveAddress])
-
-  /*
-   * ---------------------------------------------------------
-   * Add Item Helper (Stackable support)
-   * ---------------------------------------------------------
-   */
-  const addItem = useCallback((item: InventoryItem) => {
-    // 1. Cố gắng gộp stack vào Toolbar trước
-    if (item.stackable) {
-      const tbIdx = toolbar.findIndex((t) => t && t.id === item.id)
-      if (tbIdx !== -1 && toolbar[tbIdx]) {
-        setToolbar((prev) => {
-          const next = [...prev]
-          next[tbIdx] = {
-            ...next[tbIdx]!,
-            quantity: next[tbIdx]!.quantity + item.quantity,
-          }
-          return next
-        })
-        return
-      }
-
-      // 2. Cố gắng gộp stack vào Inventory
-      const invIdx = inventory.findIndex((entry) => entry && entry.id === item.id)
-      if (invIdx !== -1 && inventory[invIdx]) {
-        setInventory((prev) => {
-          const next = [...prev]
-          next[invIdx] = {
-            ...next[invIdx]!,
-            quantity: next[invIdx]!.quantity + item.quantity,
-          }
-          return next
-        })
-        return
-      }
-    }
-
-    // 3. Tìm ô trống trong Toolbar
-    const emptyTbIdx = toolbar.findIndex((t) => t === null)
-    if (emptyTbIdx !== -1) {
-      setToolbar((prev) => {
-        const next = [...prev]
-        next[emptyTbIdx] = item
-        return next
-      })
-      return
-    }
-
-    // 4. Tìm ô trống trong Inventory
-    const emptyInvIdx = inventory.findIndex((entry) => entry === null)
-    if (emptyInvIdx !== -1) {
-      setInventory((prev) => {
-        const next = [...prev]
-        next[emptyInvIdx] = item
-        return next
-      })
-    }
-  }, [toolbar, inventory])
-
-  /*
-   * ---------------------------------------------------------
-   * Consume Seed Helper
-   * ---------------------------------------------------------
-   */
-  const consumeSeed = useCallback((seedId: ToolId): boolean => {
-    // 1. Kiểm tra trên Toolbar
-    const tbIdx = toolbar.findIndex((t) => t && t.id === seedId && t.quantity > 0)
-    if (tbIdx !== -1 && toolbar[tbIdx]) {
-      setToolbar((prev) => {
-        const next = [...prev]
-        const current = next[tbIdx]!
-        if (current.quantity > 1) {
-          next[tbIdx] = { ...current, quantity: current.quantity - 1 }
-        } else {
-          next[tbIdx] = null
-          setSelectedTool('watering-can')
-        }
-        return next
-      })
-      return true
-    }
-
-    // 2. Kiểm tra trong Inventory
-    const invIdx = inventory.findIndex((entry) => entry && entry.id === seedId && entry.quantity > 0)
-    if (invIdx !== -1 && inventory[invIdx]) {
-      setInventory((prev) => {
-        const next = [...prev]
-        const current = next[invIdx]!
-        if (current.quantity > 1) {
-          next[invIdx] = { ...current, quantity: current.quantity - 1 }
-        } else {
-          next[invIdx] = null
-        }
-        return next
-      })
-      return true
-    }
-
-    return false
-  }, [toolbar, inventory])
-
-  /*
-   * ---------------------------------------------------------
-   * Audio Engine & Retro BGM (Pixels.xyz Pillar 3)
-   * ---------------------------------------------------------
-   */
-  useEffect(() => {
-    const handleFirstGesture = () => {
-      if (soundEngine.getBgmEnabled()) {
-        soundEngine.startBGM()
-      }
-      window.removeEventListener('pointerdown', handleFirstGesture)
-      window.removeEventListener('keydown', handleFirstGesture)
-    }
-
-    window.addEventListener('pointerdown', handleFirstGesture)
-    window.addEventListener('keydown', handleFirstGesture)
-    return () => {
-      window.removeEventListener('pointerdown', handleFirstGesture)
-      window.removeEventListener('keydown', handleFirstGesture)
-      soundEngine.stopBGM()
-    }
-  }, [])
-
-  /*
-   * ---------------------------------------------------------
-   * Energy Management & XP Progression (Pixels.xyz Pillar 1)
-   * ---------------------------------------------------------
-   */
-  useEffect(() => {
-    const handleActionEnergy = (event: Event) => {
-      const customEvent = event as CustomEvent<{ cost: number; action: string }>
-      const cost = customEvent.detail?.cost ?? 2
-      if (energyRef.current < cost) {
-        customEvent.preventDefault()
-        soundEngine.playExhausted()
-        setEnergyAlert({
-          message: `⚡ Kiệt sức! Cần ít nhất ${cost} Năng lượng. Hãy ăn nông sản hoặc cá!`,
-          type: 'error',
-        })
-        setTimeout(() => setEnergyAlert(null), 3000)
-        return
-      }
-      const next = Math.max(0, energyRef.current - cost)
-      energyRef.current = next
-      setEnergy(next)
-    }
-
-    window.addEventListener('farm-action-energy', handleActionEnergy)
-    return () => window.removeEventListener('farm-action-energy', handleActionEnergy)
-  }, [])
-
-  const addXP = useCallback((amount: number) => {
-    setXp((prevXp) => {
-      const nextXp = prevXp + amount
-      setLevel((prevLevel) => {
-        const requiredXp = prevLevel * 100
-        if (nextXp >= requiredXp) {
-          const nextLevel = prevLevel + 1
-          const nextMaxEnergy = 100 + (nextLevel - 1) * 5
-          setMaxEnergy(nextMaxEnergy)
-          setEnergy(nextMaxEnergy)
-          energyRef.current = nextMaxEnergy
-          soundEngine.playLevelUp()
-          setLevelUpMessage(
-            `🎉 LEVEL UP! Chúc mừng bạn đã đạt Cấp ${nextLevel}! Hồi phục đầy Năng lượng và Tối đa ⚡ +5.`,
-          )
-          setTimeout(() => setLevelUpMessage(null), 4000)
-          return nextLevel
-        }
-        return prevLevel
-      })
-      return nextXp
-    })
-  }, [])
-
-  const handleEatItem = useCallback(
-    (source: 'inventory' | 'toolbar', index: number) => {
-      const slot = source === 'inventory' ? inventory[index] : toolbar[index]
-      if (!slot) return
-
-      const edible = EDIBLE_ITEMS[slot.id]
-      if (!edible) return
-
-      if (energy >= maxEnergy) {
-        setEnergyAlert({
-          message: '⚡ Thể lực đang đầy (100%), không cần ăn thêm!',
-          type: 'error',
-        })
-        setTimeout(() => setEnergyAlert(null), 2500)
-        return
-      }
-
-      if (source === 'inventory') {
-        setInventory((prev) => {
-          const next = [...prev]
-          const cur = next[index]
-          if (!cur) return prev
-          if (cur.quantity > 1) {
-            next[index] = { ...cur, quantity: cur.quantity - 1 }
-          } else {
-            next[index] = null
-            setSelectedInvIndex(null)
-          }
-          return next
-        })
-      } else {
-        setToolbar((prev) => {
-          const next = [...prev]
-          const cur = next[index]
-          if (!cur) return prev
-          if (cur.quantity > 1) {
-            next[index] = { ...cur, quantity: cur.quantity - 1 }
-          } else {
-            next[index] = null
-            setSelectedTool('watering-can')
-          }
-          return next
-        })
-      }
-
-      const restored = Math.min(maxEnergy, energy + edible.energy)
-      setEnergy(restored)
-      energyRef.current = restored
-      soundEngine.playEat()
-      setEnergyAlert({
-        message: `🍽️ Bạn đã ăn ${slot.label}! Hồi phục +${edible.energy} ⚡ Năng lượng.`,
-        type: 'success',
-      })
-      setTimeout(() => setEnergyAlert(null), 3000)
-    },
-    [energy, maxEnergy, inventory, toolbar],
-  )
-
+  // Xử lý ăn vật phẩm từ Tool được chọn
   const handleEatSelectedTool = () => {
     const idx = toolbar.findIndex((t) => t && t.id === selectedTool)
     if (idx !== -1) {
@@ -406,28 +211,9 @@ export function GamePage() {
     }
   }
 
-  /*
-   * ---------------------------------------------------------
-   * NPC Dialogue Interactions (Pixels.xyz Pillar 2)
-   * ---------------------------------------------------------
-   */
-  useEffect(() => {
-    const handleOpenDialogue = (e: Event) => {
-      const customEvent = e as CustomEvent<{ npcId: string }>
-      if (customEvent.detail?.npcId) {
-        setActiveNpcId(customEvent.detail.npcId)
-        setDialogueOpen(true)
-      }
-    }
-
-    window.addEventListener('open-npc-dialogue', handleOpenDialogue)
-    return () => window.removeEventListener('open-npc-dialogue', handleOpenDialogue)
-  }, [])
-
+  // Nhận thưởng nhiệm vụ đối thoại NPC
   const handleClaimNpcReward = (reward: DialogueStep['reward']) => {
     if (!reward) return
-
-    // 1. Coins reward
     if (reward.coins) {
       if (!currentUser && !account) {
         showGameAlert({
@@ -451,8 +237,6 @@ export function GamePage() {
         })
       }
     }
-
-    // 2. Seeds or Item reward
     if (reward.quantity && reward.itemId) {
       const def = ITEM_DEFINITIONS[reward.itemId as ToolId]
       if (def) {
@@ -467,8 +251,6 @@ export function GamePage() {
         })
       }
     }
-
-    // 3. Energy restore
     if (reward.type === 'energy') {
       setEnergy(maxEnergy)
       energyRef.current = maxEnergy
@@ -478,125 +260,27 @@ export function GamePage() {
       })
       setTimeout(() => setEnergyAlert(null), 3000)
     }
-
-    // 4. XP reward
     if (reward.xp) {
       addXP(reward.xp)
     }
-
     setLevelUpMessage(
       `🎁 Bạn đã nhận thưởng từ ${activeNpcId === 'barney' ? 'Bác Barney' : 'Cô Hazel'}!`,
     )
     setTimeout(() => setLevelUpMessage(null), 3500)
   }
 
-  /*
-   * ---------------------------------------------------------
-   * Event Listeners (Gieo hạt, Thu hoạch, Câu cá)
-   * ---------------------------------------------------------
-   */
-  useEffect(() => {
-    const handlePlant = (event: Event) => {
-      const customEvent = event as CustomEvent<{ seedId: ToolId; cropId: string }>
-      const seedId = customEvent.detail?.seedId
-      if (!seedId) return
-
-      const success = consumeSeed(seedId)
-      if (!success) {
-        customEvent.preventDefault()
-      }
-    }
-
-    window.addEventListener('farm-plant-crop', handlePlant)
-    return () => window.removeEventListener('farm-plant-crop', handlePlant)
-  }, [consumeSeed])
-
-  useEffect(() => {
-    const handleFarmHarvest = (event: Event) => {
-      const customEvent = event as CustomEvent
-      const crop = customEvent.detail?.crop
-
-      if (crop) {
-        if (!currentUser && !account) {
-          showGameAlert({
-            title: 'Yêu Cầu Đăng Nhập',
-            message: 'Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP từ thu hoạch nông sản.',
-            type: 'warning',
-            icon: '🔒',
-            confirmText: 'Đăng nhập ngay',
-            onConfirm: () => setAuthModalOpen(true),
-          })
-        } else {
-          if (typeof crop.harvestCoins === 'number') {
-            setCoins((prev) => prev + crop.harvestCoins)
-          }
-          addXP(15)
-        }
-
-        // Vẫn cộng nông sản thu hoạch vào kho đồ
-        const cropDef = ITEM_DEFINITIONS[crop.id as ToolId]
-        if (cropDef) {
-          addItem({ ...cropDef, quantity: 1 })
-        }
-      }
-    }
-
-    window.addEventListener('farm-harvest', handleFarmHarvest)
-    return () => window.removeEventListener('farm-harvest', handleFarmHarvest)
-  }, [addItem, currentUser, addXP])
-
-  useEffect(() => {
-    const handleFishingCatch = (
-      event: Event,
-    ) => {
-      const customEvent = event as CustomEvent<{
-        fish?: { id: string; name: string }
-        coins?: number
-      }>
-      const coinsReceived = customEvent.detail?.coins
-      const fishObj = customEvent.detail?.fish
-
-      if (!currentUser && !account) {
-        showGameAlert({
-          title: 'Yêu Cầu Đăng Nhập',
-          message: 'Bạn chưa đăng nhập tài khoản! Vui lòng đăng nhập để nhận Coin và EXP khi câu cá.',
-          type: 'warning',
-          icon: '🔒',
-          confirmText: 'Đăng nhập ngay',
-          onConfirm: () => setAuthModalOpen(true),
-        })
-      } else {
-        if (typeof coinsReceived === 'number') {
-          setCoins((prev) => prev + coinsReceived)
-        }
-        addXP(25)
-      }
-
-      if (fishObj && ITEM_DEFINITIONS[fishObj.id as ToolId]) {
-        addItem({ ...ITEM_DEFINITIONS[fishObj.id as ToolId], quantity: 1 })
-      }
-    }
-
-    window.addEventListener('fishing-catch', handleFishingCatch)
-    return () => window.removeEventListener('fishing-catch', handleFishingCatch)
-  }, [addItem, currentUser, addXP])
-
-  /*
-   * ---------------------------------------------------------
-   * Shop & Quest Handlers
-   * ---------------------------------------------------------
-   */
+  // Mua hạt giống từ Shop
   const handleBuyShopItem = (item: ShopItem) => {
     if (coins < item.priceCoins) return
     setCoins((prev) => prev - item.priceCoins)
     soundEngine.playCoin()
-
     const def = ITEM_DEFINITIONS[item.id]
     if (def) {
       addItem({ ...def, quantity: item.bundleQuantity })
     }
   }
 
+  // Bán nông sản lấy Coins
   const handleSellItem = (itemId: string, quantity: number, pricePerUnit: number) => {
     if (!currentUser && !account) {
       showGameAlert({
@@ -611,8 +295,6 @@ export function GamePage() {
     }
 
     let remainingToRemove = quantity
-
-    // Trừ từ toolbar trước
     setToolbar((prev) => {
       const next = [...prev]
       for (let i = 0; i < next.length; i++) {
@@ -630,7 +312,6 @@ export function GamePage() {
       return next
     })
 
-    // Sau đó trừ tiếp từ inventory
     if (remainingToRemove > 0) {
       setInventory((prev) => {
         const next = [...prev]
@@ -654,7 +335,6 @@ export function GamePage() {
     setCoins((prev) => prev + earned)
     soundEngine.playCoin()
 
-    // Đồng bộ gọi API backend
     const token = localStorage.getItem('pixel_farm_jwt')
     fetch('http://localhost:4000/api/shop/sell', {
       method: 'POST',
@@ -667,15 +347,12 @@ export function GamePage() {
         quantity,
         address: account || undefined,
       }),
-    }).catch(() => {
-      // offline fallback
-    })
+    }).catch(() => {})
   }
 
+  // Nhận thưởng Quest
   const handleClaimQuest = async (questId: number, rewardCoins: number) => {
     const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
-    const effectiveAddress = currentUser?.wallet_address || currentUser?.address || account
-
     if (!currentUser && !account && !effectiveAddress) {
       showGameAlert({
         title: 'Yêu Cầu Đăng Nhập',
@@ -727,13 +404,6 @@ export function GamePage() {
           icon: '🎁',
           confirmText: 'Tuyệt vời',
         })
-      } else {
-        showGameAlert({
-          title: 'Thông Báo Nhiệm Vụ',
-          message: res.error || 'Không thể nhận thưởng nhiệm vụ lúc này.',
-          type: 'error',
-          icon: '⚠️',
-        })
       }
     } catch {
       setCoins((prev) => prev + rewardCoins)
@@ -750,11 +420,7 @@ export function GamePage() {
     }
   }
 
-  /*
-   * ---------------------------------------------------------
-   * Web3 Handlers
-   * ---------------------------------------------------------
-   */
+  // Faucet On-Chain
   const handleClaimFaucet = async () => {
     if (!account) {
       await connectWallet()
@@ -798,156 +464,6 @@ export function GamePage() {
     })
   }
 
-  /*
-   * ---------------------------------------------------------
-   * Open / close inventory with keyboard I
-   * ---------------------------------------------------------
-   */
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null
-
-      if (
-        target?.tagName === 'INPUT' ||
-        target?.tagName === 'TEXTAREA' ||
-        target?.isContentEditable
-      ) {
-        return
-      }
-
-      if (event.key.toLowerCase() === 'i') {
-        event.preventDefault()
-        setInventoryOpen((prev) => !prev)
-      } else if (event.key.toLowerCase() === 'h') {
-        event.preventDefault()
-        setGameFiHubOpen((prev) => !prev)
-      } else if (event.key.toLowerCase() === 'q') {
-        event.preventDefault()
-        setQuizModalOpen((prev) => !prev)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
-
-  /*
-   * ---------------------------------------------------------
-   * Select tool
-   * ---------------------------------------------------------
-   */
-  const selectTool = (tool: ToolId) => {
-    setSelectedTool(tool)
-    window.dispatchEvent(
-      new CustomEvent('farm-tool-changed', {
-        detail: { tool },
-      }),
-    )
-  }
-
-  /*
-   * ---------------------------------------------------------
-   * Inventory & Toolbar Drag/Drop
-   * ---------------------------------------------------------
-   */
-  const moveInventoryToToolbar = (inventoryIndex: number, toolbarIndex: number) => {
-    const sourceItem = inventory[inventoryIndex]
-    const targetItem = toolbar[toolbarIndex]
-
-    if (!sourceItem) return
-
-    setInventory((prevInventory) => {
-      const nextInventory = [...prevInventory]
-      nextInventory[inventoryIndex] = targetItem
-      return nextInventory
-    })
-
-    setToolbar((prevToolbar) => {
-      const nextToolbar = [...prevToolbar]
-      nextToolbar[toolbarIndex] = sourceItem
-      return nextToolbar
-    })
-
-    selectTool(sourceItem.id)
-  }
-
-  const moveToolbarToInventory = (toolbarIndex: number, inventoryIndex: number) => {
-    const sourceItem = toolbar[toolbarIndex]
-    const targetItem = inventory[inventoryIndex]
-
-    if (!sourceItem) return
-
-    setInventory((prevInventory) => {
-      const nextInventory = [...prevInventory]
-      nextInventory[inventoryIndex] = sourceItem
-      return nextInventory
-    })
-
-    setToolbar((prevToolbar) => {
-      const nextToolbar = [...prevToolbar]
-      nextToolbar[toolbarIndex] = targetItem
-      return nextToolbar
-    })
-  }
-
-  const moveInventoryItem = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex) return
-
-    setInventory((prev) => {
-      const next = [...prev]
-      const source = next[fromIndex]
-      const target = next[toIndex]
-
-      if (!source) return prev
-
-      if (target && target.id === source.id && target.stackable) {
-        next[toIndex] = {
-          ...target,
-          quantity: target.quantity + source.quantity,
-        }
-        next[fromIndex] = null
-        return next
-      }
-
-      next[fromIndex] = target
-      next[toIndex] = source
-      return next
-    })
-  }
-
-  const handleInventoryDragStart = (event: React.DragEvent, index: number) => {
-    event.dataTransfer.setData(
-      'application/x-inventory',
-      JSON.stringify({ type: 'inventory', index }),
-    )
-    event.dataTransfer.effectAllowed = 'move'
-  }
-
-  const handleToolbarDragStart = (event: React.DragEvent, index: number) => {
-    event.dataTransfer.setData(
-      'application/x-inventory',
-      JSON.stringify({ type: 'toolbar', index }),
-    )
-    event.dataTransfer.effectAllowed = 'move'
-  }
-
-  const readDragData = (event: React.DragEvent) => {
-    try {
-      return JSON.parse(event.dataTransfer.getData('application/x-inventory')) as {
-        type: 'inventory' | 'toolbar'
-        index: number
-      }
-    } catch {
-      return null
-    }
-  }
-
-  const resetInventory = () => {
-    setInventory([...DEFAULT_INVENTORY])
-    setToolbar([...DEFAULT_TOOLBAR])
-    selectTool('watering-can')
-  }
-
   const handleAuthSuccess = useCallback((user: AuthUser, token: string) => {
     setCurrentUser(user)
     try {
@@ -958,9 +474,7 @@ export function GamePage() {
           detail: { user, token },
         }),
       )
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [])
 
   const handleLogout = useCallback(() => {
@@ -974,9 +488,7 @@ export function GamePage() {
           detail: { user: null, token: null },
         }),
       )
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [disconnect])
 
   return (
@@ -985,33 +497,28 @@ export function GamePage() {
 
       {/* Level Up & Energy Alerts */}
       {levelUpMessage && (
-        <div className="level-up-banner">
-          {levelUpMessage}
-        </div>
+        <div className="level-up-banner">{levelUpMessage}</div>
       )}
-
       {energyAlert && (
-        <div className={`energy-alert-toast ${energyAlert.type === 'success' ? 'energy-alert-toast--success' : ''}`}>
+        <div className={`energy-alert-banner ${energyAlert.type}`}>
           {energyAlert.message}
         </div>
       )}
 
-      {/* Left panel */}
+      {/* Top Left HUD */}
       <TopLeftHUD
+        coins={coins}
         energy={energy}
         maxEnergy={maxEnergy}
-        coins={coins}
         level={level}
         xp={xp}
-        isLoggedIn={Boolean(currentUser)}
-        onOpenAuth={() => setAuthModalOpen(true)}
         onOpenGameFiHub={() => setGameFiHubOpen(true)}
-        onOpenNftShop={() => setShopOpen(true)}
+        onOpenNftShop={() => setGameFiHubOpen(true)}
         onOpenClaim={() => setClaimModalOpen(true)}
         onOpenShop={() => setShopOpen(true)}
       />
 
-      {/* Right panel - TopRightHUD (Web3, Audio, SIWE & Quests) */}
+      {/* Top Right HUD */}
       <TopRightHUD
         account={account}
         pixelBalance={pixelBalance}
@@ -1039,7 +546,7 @@ export function GamePage() {
         onSellItem={handleSellItem}
       />
 
-      {/* Web3 Token Claim Modal (Sync Coins to $PIXEL) */}
+      {/* Web3 Token Claim Modal */}
       <ClaimTokenModal
         isOpen={claimModalOpen}
         onClose={() => setClaimModalOpen(false)}
@@ -1050,7 +557,7 @@ export function GamePage() {
         onClaimSuccess={handleClaimSuccess}
       />
 
-      {/* Auth Modal (SIWE & Traditional Login / Register) */}
+      {/* Auth Modal */}
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
@@ -1061,7 +568,7 @@ export function GamePage() {
         onLogout={handleLogout}
       />
 
-      {/* Interactive NPC Dialogue Modal (Pixels.xyz Pillar 2) */}
+      {/* Dialogue Modal */}
       <DialogueModal
         isOpen={dialogueOpen}
         npcId={activeNpcId}
@@ -1070,7 +577,7 @@ export function GamePage() {
         onClaimReward={handleClaimNpcReward}
       />
 
-      {/* Web3 GameFi Vault & Dashboard Hub (Pixels.xyz Pillar 4) */}
+      {/* GameFi Hub Modal */}
       <GameFiHubModal
         isOpen={gameFiHubOpen}
         onClose={() => setGameFiHubOpen(false)}
@@ -1086,7 +593,7 @@ export function GamePage() {
         onConnectWallet={connectWallet}
       />
 
-      {/* Blockchain Learn-to-Earn Quiz Modal */}
+      {/* Quiz Modal */}
       <QuizModal
         isOpen={quizModalOpen}
         onClose={() => setQuizModalOpen(false)}
@@ -1096,12 +603,10 @@ export function GamePage() {
         onRewardEarned={handleQuizReward}
       />
 
-      {/* Global In-Game Notification & Alert Popup */}
+      {/* Notification Modal */}
       <NotificationModal />
 
-      {/* =====================================================
-          INVENTORY POPUP
-          ===================================================== */}
+      {/* ================= INVENTORY POPUP ================= */}
       {inventoryOpen && (
         <div className="inventory-panel">
           <div className="inventory-header">
@@ -1109,7 +614,6 @@ export function GamePage() {
               <strong>KHO ĐỒ</strong>
               <span>Kéo thả vật phẩm để sắp xếp</span>
             </div>
-
             <button
               type="button"
               className="inventory-close"
@@ -1121,200 +625,134 @@ export function GamePage() {
           </div>
 
           <div className="inventory-grid">
-            {Array.from({ length: INVENTORY_SIZE }, (_, index) => {
+            {Array.from({ length: INVENTORY_SIZE }).map((_, index) => {
               const item = inventory[index]
+              const isSelected = selectedInvIndex === index
+              const isEdible = item ? !!EDIBLE_ITEMS[item.id] : false
 
               return (
                 <div
                   key={index}
-                  className={`inventory-slot${item ? ' inventory-slot-filled' : ''}${selectedInvIndex === index ? ' inventory-slot-selected' : ''}`}
+                  className={`inventory-slot ${isSelected ? 'selected' : ''}`}
                   onClick={() => setSelectedInvIndex(index)}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-                    event.dataTransfer.dropEffect = 'move'
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    const data = readDragData(event)
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const data = readDragData(e)
                     if (!data) return
-
-                    if (data.type === 'inventory') {
-                      moveInventoryItem(data.index, index)
-                    }
-
                     if (data.type === 'toolbar') {
                       moveToolbarToInventory(data.index, index)
+                    } else if (data.type === 'inventory') {
+                      moveInventoryItem(data.index, index)
                     }
                   }}
                 >
-                  {item && (
+                  <span className="slot-number">{index + 1}</span>
+                  {item ? (
                     <div
-                      className="inventory-item"
+                      className="slot-content"
                       draggable
-                      onDragStart={(event) => handleInventoryDragStart(event, index)}
-                      title={item.label}
+                      onDragStart={(e) => handleInventoryDragStart(e, index)}
                     >
-                      <img src={item.icon} alt={item.label} draggable={false} />
+                      <img
+                        src={item.icon}
+                        alt={item.label}
+                        className="slot-icon"
+                        draggable={false}
+                      />
+                      <span className="slot-name">{item.label}</span>
                       {item.stackable && (
-                        <span className="item-quantity">{item.quantity}</span>
+                        <span className="slot-quantity">{item.quantity}</span>
                       )}
                     </div>
+                  ) : (
+                    <span className="slot-empty">Trống</span>
                   )}
-
-                  <small className="inventory-slot-number">{index + 1}</small>
+                  {isSelected && item && isEdible && (
+                    <button
+                      type="button"
+                      className="slot-eat-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEatItem('inventory', index)
+                      }}
+                      title={`Hồi +${EDIBLE_ITEMS[item.id].energy} Năng lượng`}
+                    >
+                      🍽️ Ăn
+                    </button>
+                  )}
                 </div>
               )
             })}
           </div>
 
-          {selectedInvIndex !== null && inventory[selectedInvIndex] && (
-            <div className="inventory-eat-bar">
-              <span>
-                {inventory[selectedInvIndex]!.label}
-                {EDIBLE_ITEMS[inventory[selectedInvIndex]!.id]
-                  ? ` (+${EDIBLE_ITEMS[inventory[selectedInvIndex]!.id].energy} ⚡)`
-                  : ''}
-              </span>
-              {EDIBLE_ITEMS[inventory[selectedInvIndex]!.id] ? (
-                <button
-                  type="button"
-                  className="inventory-eat-btn"
-                  onClick={() => handleEatItem('inventory', selectedInvIndex)}
-                >
-                  🍽️ Ăn (+{EDIBLE_ITEMS[inventory[selectedInvIndex]!.id].energy} ⚡)
-                </button>
-              ) : (
-                <small style={{ color: '#8fa5cf' }}>Không thể ăn</small>
-              )}
-            </div>
-          )}
-
-          <div className="inventory-hint">
-            💡 Kéo vật phẩm vào thanh công cụ hoặc nhấp để Ăn hồi phục thể lực
+          <div className="inventory-actions">
+            <button
+              type="button"
+              className="inventory-reset"
+              onClick={resetInventory}
+            >
+              Đặt lại mặc định
+            </button>
+            <span className="inventory-hint">
+              Nhấn <strong>[I]</strong> để đóng
+            </span>
           </div>
-
-          <button type="button" className="inventory-reset" onClick={resetInventory}>
-            Reset kho đồ
-          </button>
         </div>
       )}
 
-      {/* Quick Eat Action pill if selected tool is edible */}
-      {selectedTool && EDIBLE_ITEMS[selectedTool] && (
+      {/* ================= TOOLBAR ================= */}
+      <div className="game-toolbar" aria-label="Thanh công cụ">
         <button
           type="button"
-          className="toolbar-eat-pill"
-          onClick={handleEatSelectedTool}
-        >
-          🍽️ Ăn {ITEM_DEFINITIONS[selectedTool]?.label || selectedTool} (+{EDIBLE_ITEMS[selectedTool].energy} ⚡)
-        </button>
-      )}
-
-      {/* =====================================================
-          BOTTOM TOOLBAR
-          ===================================================== */}
-      <div className="game-toolbar" role="toolbar" aria-label="Công cụ nông trại">
-        {/* Inventory button */}
-        <button
-          type="button"
-          className={`toolbar-menu${inventoryOpen ? ' toolbar-menu-active' : ''}`}
-          aria-label="Kho đồ"
-          aria-expanded={inventoryOpen}
+          className={`toolbar-backpack ${inventoryOpen ? 'active' : ''}`}
           onClick={() => setInventoryOpen((prev) => !prev)}
+          aria-label="Mở túi đồ"
+          title="Túi đồ (Phím I)"
         >
-          •••
+          🎒
         </button>
 
-        {/* Shop Button */}
-        <button
-          type="button"
-          className={`toolbar-menu${shopOpen ? ' toolbar-menu-active' : ''}`}
-          aria-label="Cửa hàng hạt giống"
-          title="Cửa hàng hạt giống"
-          onClick={() => setShopOpen((prev) => !prev)}
-        >
-          🛒
-        </button>
+        {selectedTool && EDIBLE_ITEMS[selectedTool] && (
+          <button
+            type="button"
+            className="toolbar-eat-btn"
+            onClick={handleEatSelectedTool}
+            title={`Ăn vật phẩm đang chọn (+${EDIBLE_ITEMS[selectedTool].energy} Năng lượng)`}
+          >
+            🍽️ Ăn ({EDIBLE_ITEMS[selectedTool].energy}⚡)
+          </button>
+        )}
 
-        {/* GameFi Hub Button (Vault & Analytics) */}
-        <button
-          type="button"
-          className={`toolbar-menu${gameFiHubOpen ? ' toolbar-menu-active' : ''}`}
-          aria-label="GameFi Hub (H)"
-          title="GameFi Hub Dashboard & Lịch sử giao dịch (H)"
-          onClick={() => setGameFiHubOpen((prev) => !prev)}
-        >
-          📊
-        </button>
+        {TOOL_KEYS.map((key) => {
+          const index = key - 1
+          const tool = toolbar[index]
+          const isSelected = tool && tool.id === selectedTool
 
-        {/* Sync Coins to $PIXEL Claim Button */}
-        <button
-          type="button"
-          className={`toolbar-menu${claimModalOpen ? ' toolbar-menu-active' : ''}`}
-          aria-label="Rút $PIXEL on-chain"
-          title="Đổi Coin lấy $PIXEL on-chain"
-          onClick={() => setClaimModalOpen(true)}
-        >
-          🪙
-        </button>
-
-        {/* Blockchain Learn-to-Earn Quiz Button */}
-        <button
-          type="button"
-          className={`toolbar-menu${quizModalOpen ? ' toolbar-menu-active' : ''}`}
-          aria-label="Lớp học Blockchain & Web3 (Q)"
-          title="Lớp học Blockchain & Web3 - Trắc nghiệm nhận Coin (Phím tắt: Q)"
-          onClick={() => setQuizModalOpen((prev) => !prev)}
-        >
-          🎓
-        </button>
-
-        {toolbar.map((tool, toolbarIndex) => {
           return (
             <button
-              key={`${toolbarIndex}-${tool?.id ?? 'empty'}`}
-              id={tool ? `tool-${tool.id}` : `tool-empty-${toolbarIndex}`}
+              key={key}
               type="button"
-              className={`toolbar-tool${tool?.id === selectedTool ? ' tool-selected' : ''}${!tool ? ' toolbar-empty' : ''}`}
-              aria-label={tool?.label ?? 'Ô trống'}
-              aria-pressed={tool?.id === selectedTool}
-              draggable={Boolean(tool)}
+              className={`toolbar-slot ${isSelected ? 'active' : ''}`}
               onClick={() => {
                 if (tool) {
                   selectTool(tool.id)
                 }
               }}
-              onDragStart={(event) => {
-                if (tool) {
-                  handleToolbarDragStart(event, toolbarIndex)
-                }
-              }}
-              onDragOver={(event) => {
-                event.preventDefault()
-                event.dataTransfer.dropEffect = 'move'
-              }}
-              onDrop={(event) => {
-                event.preventDefault()
-                const data = readDragData(event)
+              draggable={!!tool}
+              onDragStart={(e) => handleToolbarDragStart(e, index)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                const data = readDragData(e)
                 if (!data) return
-
                 if (data.type === 'inventory') {
-                  moveInventoryToToolbar(data.index, toolbarIndex)
-                }
-
-                if (data.type === 'toolbar') {
-                  setToolbar((prev) => {
-                    const next = [...prev]
-                    const temp = next[data.index]
-                    next[data.index] = next[toolbarIndex]
-                    next[toolbarIndex] = temp
-                    return next
-                  })
+                  moveInventoryToToolbar(data.index, index)
                 }
               }}
+              aria-label={tool ? `${tool.label} (Phím ${key})` : `Ô trống ${key}`}
             >
-              <small>{TOOL_KEYS[toolbarIndex]}</small>
-
+              <span className="toolbar-key">{key}</span>
               {tool ? (
                 <>
                   <img
@@ -1345,48 +783,7 @@ export function GamePage() {
       </div>
 
       {/* Virtual D-pad controls */}
-      <div className="game-controls" aria-label="Phím điều hướng ảo">
-        <button
-          type="button"
-          className="control-up"
-          aria-label="Đi lên"
-          onPointerDown={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: 'up' } }))}
-          onPointerUp={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
-          onPointerLeave={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
-        >
-          ▲
-        </button>
-        <button
-          type="button"
-          className="control-left"
-          aria-label="Sang trái"
-          onPointerDown={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: 'left' } }))}
-          onPointerUp={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
-          onPointerLeave={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
-        >
-          ◀
-        </button>
-        <button
-          type="button"
-          className="control-down"
-          aria-label="Đi xuống"
-          onPointerDown={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: 'down' } }))}
-          onPointerUp={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
-          onPointerLeave={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
-        >
-          ▼
-        </button>
-        <button
-          type="button"
-          className="control-right"
-          aria-label="Sang phải"
-          onPointerDown={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: 'right' } }))}
-          onPointerUp={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
-          onPointerLeave={() => document.dispatchEvent(new CustomEvent('farm-control', { detail: { direction: undefined } }))}
-        >
-          ▶
-        </button>
-      </div>
+      <VirtualDpad />
     </section>
   )
 }
