@@ -175,33 +175,63 @@ export function GamePage() {
 
   // Đồng bộ trạng thái Game từ Backend nếu có
   useEffect(() => {
-    if (effectiveAddress) {
-      const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
-      fetch(`http://localhost:4000/api/game/state?address=${effectiveAddress}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.state) {
-            if (typeof data.state.coins === 'number') setCoins(data.state.coins)
-            if (typeof data.state.energy === 'number') {
-              setEnergy(data.state.energy)
-              energyRef.current = data.state.energy
-            }
-            if (typeof data.state.max_energy === 'number') setMaxEnergy(data.state.max_energy)
-            if (typeof data.state.level === 'number') setLevel(data.state.level)
-            if (typeof data.state.xp === 'number') setXp(data.state.xp)
-            if (Array.isArray(data.state.quests)) {
-              const ids = data.state.quests
-                .map((q: any) => (typeof q === 'number' ? q : q?.id))
-                .filter((id: any) => typeof id === 'number')
-              if (ids.length > 0) setCompletedQuestIds(ids)
-            }
-          }
+    const fetchLatestState = () => {
+      if (effectiveAddress) {
+        const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
+        fetch(`http://localhost:4000/api/game/state?address=${effectiveAddress}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
-        .catch(() => {})
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && data.state) {
+              if (typeof data.state.coins === 'number') setCoins(data.state.coins)
+              if (typeof data.state.energy === 'number') {
+                setEnergy(data.state.energy)
+                energyRef.current = data.state.energy
+              }
+              if (typeof data.state.max_energy === 'number') setMaxEnergy(data.state.max_energy)
+              if (typeof data.state.level === 'number') setLevel(data.state.level)
+              if (typeof data.state.xp === 'number') setXp(data.state.xp)
+              if (Array.isArray(data.state.quests)) {
+                const ids = data.state.quests
+                  .map((q: any) => (typeof q === 'number' ? q : q?.id))
+                  .filter((id: any) => typeof id === 'number')
+                if (ids.length > 0) setCompletedQuestIds(ids)
+              }
+            }
+          })
+          .catch(() => {})
+      }
     }
+
+    fetchLatestState()
+    window.addEventListener('sync-game-state', fetchLatestState)
+    return () => window.removeEventListener('sync-game-state', fetchLatestState)
   }, [effectiveAddress, currentUser?.token])
+
+  // Tự động lưu Game State (coins, energy, level, xp) lên Backend khi có thay đổi
+  useEffect(() => {
+    if (!effectiveAddress) return
+    const timer = setTimeout(() => {
+      const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
+      fetch('http://localhost:4000/api/game/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          address: effectiveAddress,
+          coins,
+          energy,
+          max_energy: maxEnergy,
+          level,
+          xp,
+        }),
+      }).catch(() => {})
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [effectiveAddress, coins, energy, maxEnergy, level, xp, currentUser?.token])
 
   // Xử lý ăn vật phẩm từ Tool được chọn
   const handleEatSelectedTool = () => {
@@ -628,12 +658,11 @@ export function GamePage() {
             {Array.from({ length: INVENTORY_SIZE }).map((_, index) => {
               const item = inventory[index]
               const isSelected = selectedInvIndex === index
-              const isEdible = item ? !!EDIBLE_ITEMS[item.id] : false
 
               return (
                 <div
                   key={index}
-                  className={`inventory-slot ${isSelected ? 'selected' : ''}`}
+                  className={`inventory-slot ${item ? 'inventory-slot-filled' : ''} ${isSelected ? 'inventory-slot-selected' : ''}`}
                   onClick={() => setSelectedInvIndex(index)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
@@ -647,44 +676,44 @@ export function GamePage() {
                     }
                   }}
                 >
-                  <span className="slot-number">{index + 1}</span>
-                  {item ? (
+                  <small className="inventory-slot-number">{index + 1}</small>
+                  {item && (
                     <div
-                      className="slot-content"
+                      className="inventory-item"
                       draggable
                       onDragStart={(e) => handleInventoryDragStart(e, index)}
+                      title={item.label}
                     >
                       <img
                         src={item.icon}
                         alt={item.label}
-                        className="slot-icon"
                         draggable={false}
                       />
-                      <span className="slot-name">{item.label}</span>
                       {item.stackable && (
-                        <span className="slot-quantity">{item.quantity}</span>
+                        <span className="item-quantity">{item.quantity}</span>
                       )}
                     </div>
-                  ) : (
-                    <span className="slot-empty">Trống</span>
-                  )}
-                  {isSelected && item && isEdible && (
-                    <button
-                      type="button"
-                      className="slot-eat-btn"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleEatItem('inventory', index)
-                      }}
-                      title={`Hồi +${EDIBLE_ITEMS[item.id].energy} Năng lượng`}
-                    >
-                      🍽️ Ăn
-                    </button>
                   )}
                 </div>
               )
             })}
           </div>
+
+          {/* Thanh tương tác khi chọn vật phẩm ăn được trong Inventory */}
+          {selectedInvIndex !== null && inventory[selectedInvIndex] && EDIBLE_ITEMS[inventory[selectedInvIndex]!.id] && (
+            <div className="inventory-eat-bar">
+              <span>
+                🍽️ {inventory[selectedInvIndex]!.label} (+{EDIBLE_ITEMS[inventory[selectedInvIndex]!.id].energy}⚡ Năng lượng)
+              </span>
+              <button
+                type="button"
+                className="inventory-eat-btn"
+                onClick={() => handleEatItem('inventory', selectedInvIndex)}
+              >
+                Ăn ngay
+              </button>
+            </div>
+          )}
 
           <div className="inventory-actions">
             <button
@@ -705,7 +734,7 @@ export function GamePage() {
       <div className="game-toolbar" aria-label="Thanh công cụ">
         <button
           type="button"
-          className={`toolbar-backpack ${inventoryOpen ? 'active' : ''}`}
+          className={`toolbar-menu toolbar-backpack ${inventoryOpen ? 'toolbar-menu-active' : ''}`}
           onClick={() => setInventoryOpen((prev) => !prev)}
           aria-label="Mở túi đồ"
           title="Túi đồ (Phím I)"
@@ -716,7 +745,7 @@ export function GamePage() {
         {selectedTool && EDIBLE_ITEMS[selectedTool] && (
           <button
             type="button"
-            className="toolbar-eat-btn"
+            className="toolbar-eat-pill toolbar-eat-btn"
             onClick={handleEatSelectedTool}
             title={`Ăn vật phẩm đang chọn (+${EDIBLE_ITEMS[selectedTool].energy} Năng lượng)`}
           >
@@ -733,7 +762,7 @@ export function GamePage() {
             <button
               key={key}
               type="button"
-              className={`toolbar-slot ${isSelected ? 'active' : ''}`}
+              className={`toolbar-tool${isSelected ? ' tool-selected' : ''}${!tool ? ' toolbar-empty' : ''}`}
               onClick={() => {
                 if (tool) {
                   selectTool(tool.id)
@@ -752,7 +781,7 @@ export function GamePage() {
               }}
               aria-label={tool ? `${tool.label} (Phím ${key})` : `Ô trống ${key}`}
             >
-              <span className="toolbar-key">{key}</span>
+              <small>{key}</small>
               {tool ? (
                 <>
                   <img
@@ -766,9 +795,7 @@ export function GamePage() {
                     <span className="toolbar-quantity">{tool.quantity}</span>
                   )}
                 </>
-              ) : (
-                <span className="toolbar-empty-label">TRỐNG</span>
-              )}
+              ) : null}
             </button>
           )
         })}

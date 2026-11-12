@@ -406,13 +406,19 @@ export function useWeb3() {
     const eth = getMetaMaskProvider()
     if (!eth || !eth.on) return
 
-    const handleAccountsChanged = (_accounts: string[]) => {
-      // Khi người dùng đổi tài khoản hoặc khóa ví, luôn ngắt kết nối để yêu cầu xác thực lại
-      disconnect()
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (!accounts || accounts.length === 0) {
+        disconnect()
+      } else if (account && accounts[0].toLowerCase() !== account.toLowerCase()) {
+        disconnect()
+      }
     }
 
-    const handleChainChanged = () => {
-      window.location.reload()
+    const handleChainChanged = (newChainHex: string) => {
+      // Cập nhật chainId trong state mà KHÔNG reload lại toàn bộ trang web
+      const newChain = typeof newChainHex === 'string' ? parseInt(newChainHex, 16) : Number(newChainHex)
+      setChainId(newChain)
+      refreshBalances()
     }
 
     eth.on('accountsChanged', handleAccountsChanged)

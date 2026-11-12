@@ -1,5 +1,5 @@
 import { Router, Response } from 'express'
-import { GameStateModel } from '../db/models.js'
+import { GameStateModel, ClaimModel } from '../db/models.js'
 import { DEFAULT_INITIAL_INVENTORY, DEFAULT_INITIAL_TOOLBAR } from '../db/database.js'
 import { optionalAuth } from '../middleware/auth.js'
 import type { AuthenticatedRequest, GameState } from '../types/index.js'
@@ -32,6 +32,23 @@ gameRouter.get('/state', optionalAuth, async (req: AuthenticatedRequest, res: Re
         quests: [],
         updated_at: new Date(),
       })
+    } else {
+      // Tự động hoàn trả (Rollback) các phiên rút token bị pending gián đoạn (> 20s) mà chưa xác nhận on-chain
+      const pendingClaims = await ClaimModel.find({
+        wallet_address: normalizedAddr,
+        status: 'pending',
+        created_at: { $lt: new Date(Date.now() - 20 * 1000) },
+      })
+
+      if (pendingClaims.length > 0) {
+        for (const pendingClaim of pendingClaims) {
+          pendingClaim.status = 'cancelled'
+          await pendingClaim.save()
+          doc.coins += pendingClaim.coin_amount
+        }
+        doc.updated_at = new Date()
+        await doc.save()
+      }
     }
 
     const state: GameState = {

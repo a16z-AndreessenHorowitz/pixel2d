@@ -329,6 +329,7 @@
   min-width: 0;
 
   position: relative;
+  overflow: hidden;
 
   display: flex;
   align-items: center;
@@ -388,9 +389,13 @@
   justify-content: center;
 }
 
-.inventory-item img {
+.inventory-item img,
+.inventory-slot img,
+.slot-icon {
   width: 80%;
   height: 80%;
+  max-width: 80%;
+  max-height: 80%;
 
   object-fit: contain;
 
@@ -513,14 +518,16 @@
 
 .game-toolbar .toolbar-empty {
   opacity: 0.65;
-
   border-style: dashed !important;
+  min-width: 66px;
+  min-height: 72px;
 }
 
-.game-toolbar .toolbar-empty-label {
-  color: #64818c;
-
-  font-size: 0.4rem;
+.game-toolbar .toolbar-backpack {
+  font-size: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 

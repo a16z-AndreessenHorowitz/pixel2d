@@ -90,6 +90,9 @@ export function ClaimTokenModal({
   useEffect(() => {
     if (!isOpen || !account) return
 
+    // Yêu cầu đồng bộ số dư coin mới nhất từ DB
+    window.dispatchEvent(new CustomEvent('sync-game-state'))
+
     let active = true
     fetch(`${BACKEND_URL}/api/web3/claim-status?address=${account}`)
       .then((res) => res.json())
@@ -143,6 +146,43 @@ export function ClaimTokenModal({
       return
     }
 
+    // Tự động kiểm tra và chuyển mạng MetaMask sang Sepolia nếu đang ở mạng khác (ví dụ Hardhat Localhost)
+    const eth = (window as any).ethereum
+    if (eth && eth.request) {
+      try {
+        const currentChainHex = await eth.request({ method: 'eth_chainId' })
+        const currentChainId = parseInt(currentChainHex, 16)
+        if (currentChainId !== 11155111) {
+          try {
+            await eth.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0xaa36a7' }],
+            })
+          } catch (switchErr: any) {
+            if (switchErr.code === 4902) {
+              await eth.request({
+                method: 'wallet_addEthereumChain',
+                params: [
+                  {
+                    chainId: '0xaa36a7',
+                    chainName: 'Ethereum Sepolia Testnet',
+                    nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
+                    rpcUrls: ['https://rpc.sepolia.org'],
+                    blockExplorerUrls: ['https://sepolia.etherscan.io'],
+                  },
+                ],
+              })
+            } else {
+              setErrorMessage('Vui lòng chuyển mạng MetaMask sang Ethereum Sepolia Testnet để giao dịch!')
+              return
+            }
+          }
+        }
+      } catch {
+        // bỏ qua nếu provider không hỗ trợ
+      }
+    }
+
     if (activeCoins < 1000) {
       setErrorMessage('Số lượng quy đổi tối thiểu là 1,000 Coins (1,000 Coins = 10 $PIXEL)!')
       return
@@ -171,10 +211,24 @@ export function ClaimTokenModal({
     let pendingNonce: number | null = null
 
     try {
+      // 0. Tự động đồng bộ số dư In-Game Coin từ Client lên Database trước khi xác thực
+      const token = localStorage.getItem('pixel_farm_jwt')
+      await fetch(`${BACKEND_URL}/api/game/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ address: account, coins: inGameCoins }),
+      }).catch(() => {})
+
       // 1. Request EIP-712 Signature from Backend
       const sigRes = await fetch(`${BACKEND_URL}/api/web3/create-claim-signature`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ address: account, coinAmount: activeCoins }),
       }).then((r) => r.json())
 
@@ -194,11 +248,16 @@ export function ClaimTokenModal({
       } catch (userErr: any) {
         // Rollback on server if user cancelled or tx reverted
         if (pendingNonce) {
-          await fetch(`${BACKEND_URL}/api/web3/claim-reward-rollback`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nonce: pendingNonce, reason: userErr?.message || 'Hủy giao dịch' }),
-          }).catch(console.warn)
+          try {
+            await fetch(`${BACKEND_URL}/api/web3/claim-reward-rollback`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nonce: pendingNonce, reason: userErr?.message || 'Hủy giao dịch' }),
+            })
+            window.dispatchEvent(new CustomEvent('sync-game-state'))
+          } catch (e) {
+            console.warn('Rollback error:', e)
+          }
         }
         throw userErr
       }
@@ -362,10 +421,11 @@ export function ClaimTokenModal({
         </div>
 
         <div className="claim-modal-footer">
-          <button className="claim-cancel-btn" onClick={onClose} disabled={loading}>
+          <button type="button" className="claim-cancel-btn" onClick={onClose} disabled={loading}>
             Đóng
           </button>
           <button
+            type="button"
             className="claim-submit-btn"
             onClick={handleClaim}
             disabled={

@@ -1,4 +1,4 @@
-import { Wallet } from 'ethers'
+import { Wallet, getAddress } from 'ethers'
 import { CONFIG } from '../config/index.js'
 import { ClaimModel, GameStateModel, TransactionModel } from '../db/models.js'
 import { EXCHANGE_PACKAGES } from '../constants/exchangePackages.js'
@@ -38,7 +38,32 @@ export interface ClaimSignatureResult {
  */
 export async function getPlayerClaimStatus(address: string): Promise<ClaimStatusResult> {
   const normalizedAddr = address.toLowerCase()
-  const lastClaim = await ClaimModel.findOne({ wallet_address: normalizedAddr }).sort({ created_at: -1 })
+
+  const state = await GameStateModel.findOne({ wallet_address: normalizedAddr })
+
+  // Tự động hoàn trả (Rollback) coin cho các phiên pending quá 20s
+  const stalePendingClaims = await ClaimModel.find({
+    wallet_address: normalizedAddr,
+    status: 'pending',
+    created_at: { $lt: new Date(Date.now() - 20 * 1000) },
+  })
+
+  if (stalePendingClaims.length > 0) {
+    let refundTotal = 0
+    for (const p of stalePendingClaims) {
+      p.status = 'cancelled'
+      await p.save()
+      refundTotal += p.coin_amount
+    }
+    if (state && refundTotal > 0) {
+      state.coins += refundTotal
+      state.updated_at = new Date()
+      await state.save()
+    }
+  }
+
+  // Cooldown chỉ tính cho các giao dịch đã thành công (status: 'confirmed')
+  const lastClaim = await ClaimModel.findOne({ wallet_address: normalizedAddr, status: 'confirmed' }).sort({ created_at: -1 })
 
   let canClaim = true
   let remainingCooldownSeconds = 0
@@ -53,8 +78,6 @@ export async function getPlayerClaimStatus(address: string): Promise<ClaimStatus
       remainingCooldownSeconds = CONFIG.CLAIM_COOLDOWN_SECONDS - elapsedSeconds
     }
   }
-
-  const state = await GameStateModel.findOne({ wallet_address: normalizedAddr })
 
   return {
     rateText: '1,000 Coins = 10 $PIXEL',
@@ -81,8 +104,8 @@ export async function generateClaimRewardSignature(
 ): Promise<ClaimSignatureResult> {
   const normalizedAddr = address.toLowerCase()
 
-  // 1. Kiểm tra thời gian hồi (Cooldown) trước
-  const lastClaim = await ClaimModel.findOne({ wallet_address: normalizedAddr }).sort({ created_at: -1 })
+  // 1. Kiểm tra thời gian hồi (Cooldown) trước (chỉ tính cho claim đã thành công)
+  const lastClaim = await ClaimModel.findOne({ wallet_address: normalizedAddr, status: 'confirmed' }).sort({ created_at: -1 })
   if (lastClaim && lastClaim.created_at) {
     const claimTime = lastClaim.created_at.getTime()
     const now = Date.now()
@@ -111,6 +134,28 @@ export async function generateClaimRewardSignature(
     throw new Error(`Vượt quá giới hạn rút tối đa (${CONFIG.CLAIM_CAP} $PIXEL ~ ${CONFIG.CLAIM_CAP * 100} Coins mỗi lần)`)
   }
 
+  // 4b. Tự động hoàn trả (Rollback) coin cho các phiên pending quá 20s nếu có
+  const stalePendingClaims = await ClaimModel.find({
+    wallet_address: normalizedAddr,
+    status: 'pending',
+    created_at: { $lt: new Date(Date.now() - 20 * 1000) },
+  })
+
+  if (stalePendingClaims.length > 0) {
+    let refundTotal = 0
+    for (const p of stalePendingClaims) {
+      p.status = 'cancelled'
+      await p.save()
+      refundTotal += p.coin_amount
+    }
+    const curState = await GameStateModel.findOne({ wallet_address: normalizedAddr })
+    if (curState && refundTotal > 0) {
+      curState.coins += refundTotal
+      curState.updated_at = new Date()
+      await curState.save()
+    }
+  }
+
   // 5. Kiểm tra số dư Coin trong game
   const state = await GameStateModel.findOne({ wallet_address: normalizedAddr })
   if (!state || state.coins < actualCoinsDeducted) {
@@ -127,7 +172,7 @@ export async function generateClaimRewardSignature(
     name: 'PixelFarmToken',
     version: '1',
     chainId: CONFIG.CHAIN_ID,
-    verifyingContract: CONFIG.CONTRACT_ADDRESS,
+    verifyingContract: getAddress(CONFIG.CONTRACT_ADDRESS),
   }
 
   const types = {
@@ -140,11 +185,20 @@ export async function generateClaimRewardSignature(
   }
 
   const value = {
-    player: normalizedAddr,
+    player: getAddress(address),
     amount: pixelAmount,
     nonce,
     deadline,
   }
+
+  console.log(`✍️ [Web3 Signer] Generating EIP-712 signature:`, {
+    signerAddress: signerWallet.address,
+    player: value.player,
+    amount: pixelAmount,
+    nonce,
+    chainId: CONFIG.CHAIN_ID,
+    contract: domain.verifyingContract,
+  })
 
   const signature = await signerWallet.signTypedData(domain, types, value)
 

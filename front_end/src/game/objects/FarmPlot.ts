@@ -320,13 +320,19 @@ export class FarmPlot extends Phaser.GameObjects.Container {
   }
 
   private animateTill() {
+    const baseScaleX = this.size / (this.dirtImage.width || this.size)
+    const baseScaleY = this.size / (this.dirtImage.height || this.size)
+
     this.scene.tweens.add({
       targets: this.dirtImage,
-      scaleX: 1.15,
-      scaleY: 0.88,
-      duration: 90,
+      scaleX: baseScaleX * 1.08,
+      scaleY: baseScaleY * 0.94,
+      duration: 80,
       yoyo: true,
-      ease: 'Back.easeOut',
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.dirtImage.setDisplaySize(this.size, this.size)
+      },
     })
   }
 

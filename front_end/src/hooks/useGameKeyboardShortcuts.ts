@@ -32,8 +32,12 @@ export function useGameKeyboardShortcuts({
 
       const key = event.key.toLowerCase()
 
-      // 1. Phím 1-8: Chọn nhanh công cụ trên Toolbar
-      const num = parseInt(key, 10)
+      // 1. Phím 1-8: Chọn nhanh công cụ trên Toolbar (hỗ trợ cả phím số hàng trên và Numpad)
+      let num = parseInt(key, 10)
+      if (isNaN(num)) {
+        const match = event.code.match(/^(?:Digit|Numpad)([1-8])$/)
+        if (match) num = parseInt(match[1], 10)
+      }
       if (!isNaN(num) && num >= 1 && num <= 8) {
         event.preventDefault()
         const toolItem = toolbar[num - 1]
