@@ -1,11 +1,12 @@
 import mongoose from 'mongoose'
 import { CONFIG } from '../config/index.js'
-import { GameStateModel, TransactionModel } from '../db/models.js'
-import { BLOCKCHAIN_QUIZ_CATALOG } from '../routes/quiz.js'
+import { GameStateModel, TransactionModel, QuizQuestionModel } from '../db/models.js'
+import { seedQuizQuestions } from '../db/database.js'
+import { getSafeQuizQuestions, submitQuizAnswer } from '../services/quizService.js'
 
 async function runQuizVerification() {
   console.log('======================================================================')
-  console.log('🎓 KIỂM THỬ HỆ THỐNG TRẮC NGHIỆM BLOCKCHAIN LEARN-TO-EARN')
+  console.log('🎓 KIỂM THỬ HỆ THỐNG TRẮC NGHIỆM BLOCKCHAIN VỚI MONGODB ATLAS')
   console.log('======================================================================\n')
 
   const testResults: { name: string; passed: boolean; details?: string }[] = []
@@ -21,111 +22,105 @@ async function runQuizVerification() {
   await mongoose.connect(CONFIG.MONGODB_URI)
   record('Kết nối MongoDB Atlas Cloud', true, 'Cụm cluster0.ws4tfvk.mongodb.net/pixel2d')
 
+  // 2. KIỂM THỬ DATABASE COLLECTION & SEEDER
+  console.log('\n--- 1. KIỂM THỬ DATABASE MONGODB: COLLECTION quiz_questions ---')
+  await seedQuizQuestions()
+  const questionCount = await QuizQuestionModel.countDocuments()
+  record(
+    'Collection quiz_questions tồn tại & Seed dữ liệu thành công',
+    questionCount >= 10,
+    `Đã lưu trữ thành công ${questionCount} câu hỏi trong bảng quiz_questions của MongoDB Atlas`,
+  )
+
   const testWallet = '0xquiz_student_test_address_12345'.toLowerCase()
   await GameStateModel.deleteOne({ wallet_address: testWallet })
   await TransactionModel.deleteMany({ wallet_address: testWallet })
 
-  // 2. KIỂM THỬ BẢO MẬT: BẢO VỆ ĐÁP ÁN (CLIENT KHÔNG XEM ĐƯỢC CORRECT_INDEX)
-  console.log('\n--- 1. KIỂM THỬ BẢO MẬT & CHE GIẤU ĐÁP ÁN ---')
-  const catalogCount = BLOCKCHAIN_QUIZ_CATALOG.length
-  record('Ngân hàng câu hỏi Web3', catalogCount === 10, `Có đủ ${catalogCount} câu hỏi đa dạng chủ đề`)
+  // 3. KIỂM THỬ BẢO MẬT PROJECTION (CLIENT KHÔNG BAO GIỜ NHẬN ĐƯỢC CORRECT_INDEX)
+  console.log('\n--- 2. KIỂM THỬ BẢO MẬT CẤP DATABASE: ZERO-LEAK PROJECTION ---')
+  const safeData = await getSafeQuizQuestions(testWallet)
+  const hasLeakedIndex = safeData.questions.some((q: any) => q.correctIndex !== undefined)
+  const hasLeakedExplanation = safeData.questions.some((q: any) => !q.isAnswered && q.explanation !== undefined)
 
-  // Mô phỏng hàm lọc API
-  const clientQuestions = BLOCKCHAIN_QUIZ_CATALOG.map((q) => ({
-    id: q.id,
-    topic: q.topic,
-    question: q.question,
-    options: q.options,
-    rewardCoins: q.rewardCoins,
-    rewardXp: q.rewardXp,
-    isAnswered: false,
-    // correctIndex KHÔNG ĐƯỢC TỒN TẠI ở client view
-  }))
+  record(
+    'Bảo mật Projection: Ẩn hoàn toàn correctIndex từ MongoDB',
+    !hasLeakedIndex,
+    'Mongoose projection select("-correctIndex") ngăn chặn rò rỉ đáp án ra ngoài mạng',
+  )
+  record(
+    'Bảo mật: Ẩn giải thích (explanation) đối với câu chưa làm',
+    !hasLeakedExplanation,
+    'Người dùng không thể xem giải thích trước khi trả lời đúng để suy ra đáp án',
+  )
 
-  const hasLeakedAnswer = (clientQuestions[0] as any).correctIndex !== undefined
-  record('Bảo mật: Ẩn đáp án đúng khỏi client', !hasLeakedAnswer, 'Client không thể đọc trước correctIndex qua API hoặc Console')
+  // 4. KIỂM THỬ XỬ LÝ KHI TRẢ LỜI SAI: TUYỆT ĐỐI KHÔNG TIẾT LỘ ĐÁP ÁN ĐÚNG
+  console.log('\n--- 3. KIỂM THỬ TRẢ LỜI SAI (CHỐNG LỘ ĐÁP ÁN KHI SAI) ---')
+  const q1Doc = await QuizQuestionModel.findOne({ id: 1 }).select('+correctIndex')
+  const actualCorrectIndex = q1Doc?.correctIndex ?? 1
+  const wrongChoice = actualCorrectIndex === 0 ? 1 : 0
 
-  // 3. KIỂM THỬ CHẶN NGƯỜI DÙNG CHƯA ĐĂNG NHẬP
-  console.log('\n--- 2. KIỂM THỬ XÁC THỰC NGƯỜI CHƠI ---')
-  const checkAuth = (address?: string) => {
-    if (!address) return { status: 401, error: 'Chưa đăng nhập' }
-    return { status: 200 }
+  const wrongResult: any = await submitQuizAnswer(testWallet, 1, wrongChoice)
+  const isWrongSuccess = wrongResult.isCorrect === false
+  const doesNotLeakAnswer = wrongResult.correctIndex === undefined && wrongResult.explanation === undefined
+
+  record('Hệ thống phát hiện câu trả lời sai', isWrongSuccess, wrongResult.message)
+  record(
+    'Bảo mật: Không gửi correctIndex hoặc giải thích khi trả lời sai',
+    doesNotLeakAnswer,
+    'Server KHÔNG bao giờ tiết lộ đáp án đúng hay giải thích cho người dùng khi họ làm sai',
+  )
+  record(
+    'Cơ chế Cooldown chống Brute-force',
+    wrongResult.cooldownSeconds === 3,
+    'Phạt thời gian chờ 3 giây sau khi chọn sai để chặn spam click 4 đáp án',
+  )
+
+  // 5. KIỂM THỬ COOLDOWN: THỬ LẠI NGAY LẬP TỨC PHẢI BỊ CHẶN 429
+  console.log('\n--- 4. KIỂM THỬ CHẶN SPAM NỘP BÀI (ANTI-BRUTE FORCE) ---')
+  let isRateLimited = false
+  try {
+    await submitQuizAnswer(testWallet, 1, wrongChoice)
+  } catch (err: any) {
+    if (err.status === 429) {
+      isRateLimited = true
+    }
   }
-  record('Chặn nộp bài khi chưa đăng nhập', checkAuth(undefined).status === 401, 'Trả về mã 401 Unauthorized khi không có địa chỉ ví')
+  record('Chặn nộp bài liên tục khi đang trong thời gian phạt Cooldown (HTTP 429)', isRateLimited, 'Ngăn chặn auto-clicker hoặc script mò đáp án')
 
-  // 4. KIỂM THỬ TRẢ LỜI SAI (KHÔNG TRỪ TIỀN, TRẢ VỀ GIẢI THÍCH HỌC TẬP)
-  console.log('\n--- 3. KIỂM THỬ TRẢ LỜI SAI & GIẢI THÍCH KIẾN THỨC ---')
-  let state = await GameStateModel.create({
-    wallet_address: testWallet,
-    coins: 100,
-    energy: 100,
-    level: 1,
-    xp: 0,
-    quiz_answered: [],
-  })
+  // Đợi hết cooldown 3.2s để tiếp tục test trả lời đúng
+  await new Promise((r) => setTimeout(r, 3200))
 
-  const q1 = BLOCKCHAIN_QUIZ_CATALOG[0] // Correct index is 1
-  const wrongAnswerIndex = 0
+  // 6. KIỂM THỬ TRẢ LỜI ĐÚNG: CỘNG COIN, LƯU VÀO MONGODB & CHỈ TIẾT LỘ GIẢI THÍCH KHI ĐÚNG
+  console.log('\n--- 5. KIỂM THỬ TRẢ LỜI ĐÚNG & CỘNG THƯỞNG MONGODB ATLAS ---')
+  const correctResult: any = await submitQuizAnswer(testWallet, 1, actualCorrectIndex)
+  const isCorrectPass = correctResult.isCorrect === true
+  const revealsExplanationNow = !!correctResult.explanation && correctResult.correctIndex === actualCorrectIndex
 
-  const isWrong = wrongAnswerIndex !== q1.correctIndex
-  record('Xử lý khi trả lời sai', isWrong, `Trả về phản hồi chưa chính xác, kèm lời giải thích: "${q1.explanation.slice(0, 50)}..."`)
+  record('Trả lời đúng được chấp thuận', isCorrectPass, correctResult.message)
+  record(
+    'Gửi giải thích & đáp án khi ĐÃ TRẢ LỜI ĐÚNG',
+    revealsExplanationNow,
+    'Người học chỉ được xem lời giải thích chi tiết khi đã thực sự suy nghĩ và chọn đúng',
+  )
 
-  const stateAfterWrong = await GameStateModel.findOne({ wallet_address: testWallet })
-  record('Không trừ tiền khi trả lời sai', stateAfterWrong?.coins === 100, `Số dư vẫn giữ nguyên: ${stateAfterWrong?.coins} Coins`)
-
-  // 5. KIỂM THỬ TRẢ LỜI ĐÚNG (CỘNG COIN & LƯU TIẾN ĐỘ)
-  console.log('\n--- 4. KIỂM THỬ TRẢ LỜI ĐÚNG & CỘNG THƯỞNG MONGODB ATLAS ---')
-  const correctAnswerIndex = q1.correctIndex // 1
-
-  state.coins += q1.rewardCoins
-  state.xp += q1.rewardXp
-  state.quiz_answered = [q1.id]
-  state.markModified('quiz_answered')
-  await state.save()
-
-  await TransactionModel.create({
-    wallet_address: testWallet,
-    type: 'quiz_reward',
-    amount: `+${q1.rewardCoins} Coins`,
-    details: `Trả lời đúng: ${q1.question}`,
-  })
-
-  const stateAfterCorrect = await GameStateModel.findOne({ wallet_address: testWallet })
+  const updatedState = await GameStateModel.findOne({ wallet_address: testWallet })
   record(
     'Cộng Coin & XP vào Database khi đúng',
-    stateAfterCorrect?.coins === 180 && stateAfterCorrect?.xp === 50,
-    `Số dư ban đầu: 100 Coins -> Sau câu 1 (+80): ${stateAfterCorrect?.coins} Coins`,
+    (updatedState?.coins || 0) === 180 && (updatedState?.xp || 0) === 50,
+    `Số dư ban đầu: 100 Coins -> Sau khi trả lời đúng: ${updatedState?.coins} Coins (+80 Coins, +50 XP)`,
   )
 
-  // 6. KIỂM THỬ CHỐNG NHẬN ĐÚP (ANTI-DUPLICATE REWARDS)
-  console.log('\n--- 5. KIỂM THỬ CHỐNG NHẬN THƯỞNG NHIỀU LẦN ---')
-  const isAlreadyAnswered = stateAfterCorrect?.quiz_answered?.includes(q1.id)
-  record('Cơ chế chống nhận đúp (Anti-Duplicate Claim)', !!isAlreadyAnswered, 'Từ chối cộng coin cho câu hỏi đã nhận thưởng trước đó')
-
-  // 7. KIỂM THỬ TÍCH LŨY TOÀN BỘ 10 BÀI HỌC ĐỂ ĐỦ 1,000 COIN ĐỔI $PIXEL
-  console.log('\n--- 6. KIỂM THỬ TÍCH LŨY ĐỦ 1,000 COIN ĐỔI $PIXEL ---')
-  // Mô phỏng người chơi học hết 10 câu
-  let totalCoinsEarned = 0
-  const allIds: number[] = []
-
-  for (const q of BLOCKCHAIN_QUIZ_CATALOG) {
-    totalCoinsEarned += q.rewardCoins
-    allIds.push(q.id)
+  // 7. KIỂM THỬ CHỐNG NHẬN THƯỞNG NHIỀU LẦN (ANTI-DUPLICATE)
+  console.log('\n--- 6. KIỂM THỬ CHỐNG NHẬN THƯỞNG NHIỀU LẦN (ANTI-DUPLICATE) ---')
+  let antiDuplicatePass = false
+  try {
+    await submitQuizAnswer(testWallet, 1, actualCorrectIndex)
+  } catch (err: any) {
+    if (err.isAlreadyAnswered) {
+      antiDuplicatePass = true
+    }
   }
-
-  state.coins = 100 + totalCoinsEarned
-  state.quiz_answered = allIds
-  state.markModified('quiz_answered')
-  await state.save()
-
-  const finalState = await GameStateModel.findOne({ wallet_address: testWallet })
-  const canRedeemPixel = (finalState?.coins || 0) >= 1000
-
-  record(
-    'Tích lũy học tập đạt điều kiện đổi $PIXEL (>= 1,000 Coins)',
-    canRedeemPixel,
-    `Tổng thưởng 10 câu: +${totalCoinsEarned} Coins. Tổng số dư: ${finalState?.coins} Coins (Đủ đổi lấy 10 $PIXEL on-chain!)`,
-  )
+  record('Chống nhận thưởng đúp (Anti-Duplicate Claim)', antiDuplicatePass, 'Từ chối cộng Coin nếu câu hỏi này đã nhận thưởng trước đó')
 
   // Dọn dẹp dữ liệu test
   await GameStateModel.deleteOne({ wallet_address: testWallet })

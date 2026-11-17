@@ -38,16 +38,26 @@ export function QuizModal({
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [submitting, setSubmitting] = useState<boolean>(false)
+  const [cooldown, setCooldown] = useState<number>(0)
   const [answeredIds, setAnsweredIds] = useState<number[]>([])
   const [feedback, setFeedback] = useState<{
     isCorrect: boolean
     message: string
-    explanation: string
+    explanation?: string
     correctIndex?: number
   } | null>(null)
 
   const userAddress = currentUser?.address || currentUser?.wallet_address || account
   const token = currentUser?.token || (typeof localStorage !== 'undefined' ? localStorage.getItem('pixel_farm_jwt') : null)
+
+  // Đếm ngược thời gian chờ sau khi trả lời sai (Chống brute-force)
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [cooldown])
 
   // Load questions from Backend
   const loadQuestions = useCallback(async () => {
@@ -123,6 +133,7 @@ export function QuizModal({
       if (res.success) {
         if (res.isCorrect) {
           soundEngine.playCoin()
+          setCooldown(0)
           setFeedback({
             isCorrect: true,
             message: res.message,
@@ -135,14 +146,16 @@ export function QuizModal({
           }
         } else {
           soundEngine.playExhausted()
+          setCooldown(res.cooldownSeconds || 3)
           setFeedback({
             isCorrect: false,
-            message: res.message,
-            explanation: res.explanation,
-            correctIndex: res.correctIndex,
+            message: res.message || 'Rất tiếc! Câu trả lời chưa chính xác. Vui lòng suy nghĩ kỹ và thử lại!',
           })
         }
       } else {
+        if (res.cooldownSeconds) {
+          setCooldown(res.cooldownSeconds)
+        }
         showGameAlert({
           title: 'Kết Quả Trắc Nghiệm',
           message: res.error || 'Lỗi khi gửi đáp án',
@@ -257,6 +270,7 @@ export function QuizModal({
                 {currentQ.options.map((optText, optIdx) => {
                   const letter = String.fromCharCode(65 + optIdx)
                   const isSelected = selectedOption === optIdx
+                  const isWrongOption = feedback && !feedback.isCorrect && isSelected
                   const isAnsweredDone = isCurrentAnswered
 
                   return (
@@ -264,15 +278,16 @@ export function QuizModal({
                       key={optIdx}
                       type="button"
                       className={`quiz-option-btn ${isSelected ? 'selected' : ''} ${
-                        isAnsweredDone ? 'disabled' : ''
-                      }`}
+                        isWrongOption ? 'wrong' : ''
+                      } ${isAnsweredDone ? 'disabled' : ''}`}
                       onClick={() => {
-                        if (!isAnsweredDone) {
+                        if (!isAnsweredDone && cooldown <= 0) {
                           soundEngine.playClick()
                           setSelectedOption(optIdx)
+                          if (feedback && !feedback.isCorrect) setFeedback(null)
                         }
                       }}
-                      disabled={isAnsweredDone || submitting}
+                      disabled={isAnsweredDone || submitting || cooldown > 0}
                     >
                       <span className="option-letter">{letter}</span>
                       <span className="option-text">{optText}</span>
@@ -298,9 +313,11 @@ export function QuizModal({
                     {feedback.isCorrect ? '🎉 CHÍNH XÁC!' : '❌ CHƯA CHÍNH XÁC!'}
                   </div>
                   <div className="feedback-message">{feedback.message}</div>
-                  <div className="feedback-explanation">
-                    <strong>💡 Giải thích kiến thức:</strong> {feedback.explanation}
-                  </div>
+                  {feedback.explanation && (
+                    <div className="feedback-explanation">
+                      <strong>💡 Giải thích kiến thức:</strong> {feedback.explanation}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -317,11 +334,16 @@ export function QuizModal({
 
           {!isCurrentAnswered && !feedback?.isCorrect && (
             <button
+              type="button"
               className="quiz-submit-btn"
               onClick={handleSubmitAnswer}
-              disabled={selectedOption === null || submitting}
+              disabled={selectedOption === null || submitting || cooldown > 0}
             >
-              {submitting ? 'Đang Chấm Điểm...' : 'Gửi Câu Trả Lời'}
+              {submitting
+                ? 'Đang Chấm Điểm...'
+                : cooldown > 0
+                  ? `Thử lại sau (${cooldown}s)`
+                  : 'Gửi Câu Trả Lời'}
             </button>
           )}
 

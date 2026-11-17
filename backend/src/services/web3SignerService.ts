@@ -120,6 +120,18 @@ export async function generateClaimRewardSignature(
     }
   }
 
+  // 1b. Kiểm tra nếu đang có phiên rút token pending đang chờ xác nhận (< 20s)
+  const activePending = await ClaimModel.findOne({
+    wallet_address: normalizedAddr,
+    status: 'pending',
+    created_at: { $gte: new Date(Date.now() - 20 * 1000) },
+  })
+  if (activePending) {
+    const err: any = new Error('Bạn đang có một phiên rút token đang chờ xử lý trên ví MetaMask! Vui lòng hoàn tất hoặc hủy phiên hiện tại.')
+    err.status = 429
+    throw err
+  }
+
   // 2. Kiểm tra số lượng tối thiểu (1,000 coins = 10 $PIXEL)
   if (rawCoinAmount < 1000) {
     throw new Error('Số lượng quy đổi tối thiểu là 1,000 Coins (Tương đương 10 $PIXEL). Tỷ lệ: 1,000 Coins = 10 $PIXEL.')

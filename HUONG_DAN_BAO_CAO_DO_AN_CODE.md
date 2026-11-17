@@ -230,19 +230,21 @@ Chức năng **"Learn-to-Earn"**: Giúp người chơi vừa giải trí vừa t
 - **Phím tắt nhanh**: Nhấn phím **`Q`** trên bàn phím bất kỳ lúc nào để mở/đóng modal làm bài.
 
 ### 3. Các file code phụ trách
+- `backend/src/db/models.ts`: Khai báo Mongoose Schema `QuizQuestionModel` lưu trữ trong collection `quiz_questions` với trường mật `correctIndex: { select: false }`.
+- `backend/src/db/database.ts`: Hàm `seedQuizQuestions()` tự động nạp ngân hàng câu hỏi vào MongoDB Atlas khi server khởi động.
+- `backend/src/services/quizService.ts`: Nghiệp vụ truy vấn an toàn bằng projection `.select('-correctIndex')`, thuật toán chấm điểm và cơ chế Cooldown chống Brute-force.
+- `backend/src/routes/quiz.ts`: API endpoints `GET /api/quiz/questions`, `GET /api/quiz/question/:id` và `POST /api/quiz/submit`.
+- `backend/src/constants/quizQuestions.ts`: Dữ liệu seed mặc định ban đầu.
 - `front_end/src/components/TopLeftHUD.tsx` & `TopLeftHUD.css`: Nút bấm 🎓 góc trên bên trái, tính toán tọa độ vòng cung và theme `radial-arc-btn--indigo`.
-- `front_end/src/components/QuizModal.tsx` & `QuizModal.css`: Giao diện modal làm bài trắc nghiệm, thanh chuyển câu hỏi và hiển thị giải thích chi tiết.
+- `front_end/src/components/QuizModal.tsx` & `QuizModal.css`: Giao diện modal làm bài trắc nghiệm, ô chọn báo đỏ khi sai, đếm ngược Cooldown 3s và mở khóa giải thích khi đúng.
 - `front_end/src/hooks/useGameKeyboardShortcuts.ts`: Bắt sự kiện phím tắt `Q`.
-- `backend/src/constants/quizQuestions.ts`: Ngân hàng 10 câu hỏi Web3 chuẩn hóa kèm giải thích đáp án.
-- `backend/src/services/quizService.ts`: Thuật toán chấm điểm, bảo vệ chống gian lận và cộng thưởng vào cơ sở dữ liệu.
-- `backend/src/routes/quiz.ts`: API endpoint `GET /api/quiz/questions` và `POST /api/quiz/submit`.
 
-### 4. Cơ chế bảo mật chống gian lận
-- **Ẩn đáp án từ Backend**: Khi client gọi `GET /api/quiz/questions`, Backend chạy qua bộ lọc `safeQuestions` và **chủ động xóa bỏ trường `correctIndex`** của những câu hỏi người chơi chưa làm. Do đó người chơi không thể dùng F12 / Inspect Network để xem trước đáp án.
-- **Xác thực chấm điểm Server-side**: Khi người chơi gửi câu trả lời lên `POST /api/quiz/submit`, Backend mới so khớp:
-  - Nếu **Đúng**: Cộng Coin/EXP vào MongoDB Atlas, đánh dấu ID câu hỏi vào mảng `quiz_answered` và trả về lời giải thích chi tiết.
-  - Nếu **Sai**: Không trừ tiền, cho phép đọc giải thích để làm lại.
-  - Nếu **Đã nhận thưởng trước đó**: Từ chối trả thưởng thêm lần nữa (chống gian lận spam thưởng).
+### 4. Cơ chế bảo mật chống gian lận & Chống F12 Inspect
+- **Bảo mật cấp CSDL MongoDB (Zero-Leak Projection)**: Câu hỏi được lưu trong Collection `quiz_questions` của MongoDB Atlas. Thuộc tính `correctIndex` được cấu hình `select: false` và câu lệnh truy vấn dùng projection `.select('-correctIndex')`. Đáp án đúng **tuyệt đối không bao giờ rời khỏi database sang tầng mạng HTTP**, bất kể người dùng có dùng F12 hay công cụ bắt gói tin nào.
+- **Ẩn giải thích (Explanation) khi chưa hoàn thành**: Trường `explanation` chỉ được cung cấp khi người chơi đã thực sự trả lời đúng, ngăn chặn đọc giải thích để suy ngược ra đáp án.
+- **Không tiết lộ đáp án khi trả lời SAI**: Khi người chơi chọn sai đáp án, Backend **CHỈ** trả về `{ isCorrect: false, message: "..." }` và **TUYỆT ĐỐI KHÔNG gửi `correctIndex`**. Giao diện chỉ tô đỏ phương án chọn sai, không làm lộ phương án đúng.
+- **Cơ chế Cooldown 3 giây chống Brute-force**: Nếu trả lời sai, hệ thống khóa nút nộp bài trong 3 giây (cả ở Frontend lẫn HTTP 429 trên Backend), ngăn chặn việc dùng auto-clicker hoặc spam liên tục 4 đáp án A, B, C, D trong 1 giây.
+- **Chống nhận thưởng đúp (Anti-Duplicate Claim)**: Đánh dấu ID câu hỏi đã hoàn thành vào mảng `quiz_answered` trong bảng `GameStateModel`, từ chối trả thưởng thêm lần nữa nếu câu hỏi đã được nhận thưởng.
 
 ---
 
@@ -443,6 +445,15 @@ Dưới đây là 15 câu hỏi điển hình nhất mà giáo viên và hội �
 
 ---
 
+### ❓ Câu 16: Câu hỏi trắc nghiệm Web3 được lưu trữ ở đâu và hệ thống chống gian lận qua F12 Inspect Network như thế nào?
+* **Trả lời**: "Dạ thưa thầy/cô, hệ thống có giải pháp bảo vệ 4 lớp toàn diện từ Database đến Client:
+  1. **Lưu trữ CSDL chuyên biệt**: Câu hỏi được lưu trong Collection `quiz_questions` của MongoDB Atlas thông qua model `QuizQuestionModel`, hỗ trợ mở rộng thêm/sửa câu hỏi động mà không cần sửa code.
+  2. **Bảo mật cấp Projection**: Khi client gọi `GET /api/quiz/questions`, Mongoose áp dụng `select('-correctIndex')`. Đáp án đúng **hoàn toàn không tồn tại trong gói tin trả về**, dù người dùng có F12 Network tab cũng không thể thấy được `correctIndex`.
+  3. **Không tiết lộ đáp án khi trả lời Sai**: Khi người chơi chọn sai, Backend **chỉ trả về `{ isCorrect: false }`** và tuyệt đối không gửi `correctIndex` hay lời giải thích. Giao diện chỉ tô đỏ phương án sai, không hé lộ phương án đúng.
+  4. **Cơ chế Cooldown 3 giây**: Sau mỗi lần trả lời sai, hệ thống khóa nộp bài 3 giây cả ở giao diện lẫn HTTP 429 trên Backend, ngăn chặn người chơi dùng công cụ auto-clicker spam thử liên tiếp 4 đáp án."
+
+---
+
 ## 🎯 LỜI KHUYÊN DÀNH CHO NHÓM KHI THUYẾT TRÌNH BẢO VỆ
 1. **Phân chia vai trò rõ ràng**:
    - Thành viên 1: Trình bày phần Tổng quan, Kiến trúc GameFi và Gameplay nông trại (Phaser 3).
@@ -465,7 +476,7 @@ Bảng tổng hợp giúp cả nhóm tra cứu ngay trong 3 giây khi thầy cô
 | **5** | **Cửa Hàng Nông Sản (Hazel)** | `front_end/src/components/ShopModal.tsx` | `backend/src/routes/shop.ts` | **Collection:** `gamestates` (trừ/cộng coins & items) | Top-Left Arc Menu (Icon 🏪) hoặc gặp NPC Hazel (**Phím E**) | Tab Mua: Mua 5 loại hạt giống. Tab Bán: Bán nông sản đã thu hoạch thu lãi Coin (tỷ lệ lợi nhuận từ +80% đến +100%). |
 | **6** | **Minigame Câu Cá** | `front_end/src/game/fishing/fishingSystem.ts`<br>`front_end/src/game/fishing/FishingMinigame.ts`<br>`front_end/src/game/fishing/FishingPrompt.ts` | `backend/src/routes/game.ts` | **Collection:** `gamestates` (lưu cá vào inventory) | Hồ nước Zone 2 bên phải (**Phím E** + Giữ **Space / Chuột**) | Tiến lại gần bờ hồ bấm E ném phao. Khi cá cắn câu, điều khiển thanh trượt giữ khớp con cá. Bắt được 12 loài cá ngẫu nhiên. |
 | **7** | **Nhiệm Vụ & Đối Thoại NPC** | `front_end/src/components/DialogueModal.tsx`<br>`front_end/src/components/QuestPanel.tsx`<br>`front_end/src/data/dialogues.ts` | `backend/src/routes/quests.ts` | **Collection:** `gamestates` (`completedQuestIds`) | Bác Barney, Cô Hazel, Bảng nhiệm vụ góc phải | Trò chuyện nhận quà khởi nghiệp. Hoàn thành nhiệm vụ nhận Coin/XP với cơ chế chống nhận trùng (Anti-Replay). |
-| **8** | **Trắc Nghiệm Web3 (Learn-to-Earn)** | `front_end/src/components/TopLeftHUD.tsx`<br>`front_end/src/components/QuizModal.tsx`<br>`front_end/src/hooks/useGameKeyboardShortcuts.ts` | `backend/src/constants/quizQuestions.ts`<br>`backend/src/services/quizService.ts`<br>`backend/src/routes/quiz.ts` | **Collection:** `gamestates` (`quiz_answered`), `transactions` | **Top-Left HUD (Icon 🎓 với huy hiệu EARN)** hoặc bấm **Phím Q** | 10 câu hỏi bảo mật Web3. Backend giấu `correctIndex` chống F12 gian lận. Trả lời đúng nhận ngay Coin & EXP, có giải thích đáp án chi tiết. |
+| **8** | **Trắc Nghiệm Web3 (Learn-to-Earn)** | `front_end/src/components/TopLeftHUD.tsx`<br>`front_end/src/components/QuizModal.tsx`<br>`front_end/src/hooks/useGameKeyboardShortcuts.ts` | `backend/src/db/models.ts`<br>`backend/src/services/quizService.ts`<br>`backend/src/routes/quiz.ts` | **Collection:** `quiz_questions`, `gamestates`, `transactions` | **Top-Left HUD (Icon 🎓 với huy hiệu EARN)** hoặc bấm **Phím Q** | Ngân hàng câu hỏi lưu trong MongoDB Atlas. Dùng projection `select('-correctIndex')` chặn F12. Trả lời sai không tiết lộ đáp án, phạt Cooldown 3s chống Brute-force. |
 | **9** | **Rút $PIXEL Token (EIP-712)** | `front_end/src/components/ClaimTokenModal.tsx`<br>`front_end/src/web3/useWeb3.ts` | `backend/src/services/web3SignerService.ts`<br>`backend/src/services/transactionService.ts`<br>`backend/src/routes/web3.ts` | **Smart Contract:** `PixelFarmToken.sol` (Sepolia `0x8350...`)<br>**Collection:** `claims`, `transactions` | Top-Left Arc Menu (Icon 🔄) hoặc GameFi Hub | Tự động chuyển mạng MetaMask sang Sepolia. Ký số EIP-712 chuẩn typed data. Hợp đồng giải mã và mint token. Có **Auto-Rollback 2 tầng** (chủ động khi bấm Hủy ví, và tự động quét phiên pending > 20s) đảm bảo không mất coin. |
 | **10** | **GameFi Hub & Kinh Tế Web3** | `front_end/src/components/GameFiHubModal.tsx` | `backend/src/routes/web3.ts` | **Collection:** `transactions`, `gamestates` (Leaderboard) | Top-Left Arc Menu (Icon 📊) hoặc bấm **Phím H** | Thống kê số dư on-chain/off-chain, tỷ lệ lạm phát, bảng xếp hạng Top nông dân giàu nhất, lịch sử nạp rút token. |
 | **11** | **Âm Thanh 8-bit Web Audio API** | `front_end/src/audio/SoundEngine.ts` | *Chạy hoàn toàn Client-side* | *Zero Dependency (0 KB mp3/wav)* | Nút 🎵 (BGM) và 🔊 (SFX) góc trên bên phải | Dùng Web Audio API `OscillatorNode` (sóng vuông, sóng sin, răng cưa) tổng hợp nhạc nền và 12 hiệu ứng âm thanh cổ điển tức thì, không tốn băng thông tải file. |

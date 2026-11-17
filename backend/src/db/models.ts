@@ -140,3 +140,34 @@ const SiweNonceSchema = new Schema<ISiweNonce>({
 })
 
 export const SiweNonceModel = mongoose.model<ISiweNonce>('SiweNonce', SiweNonceSchema)
+
+// 7. Blockchain Quiz Question
+export interface IQuizQuestion extends Document {
+  id: number
+  topic: string
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+  rewardCoins: number
+  rewardXp: number
+  difficulty?: string
+  is_active: number
+  created_at: Date
+}
+
+const QuizQuestionSchema = new Schema<IQuizQuestion>({
+  id: { type: Number, required: true, unique: true, index: true },
+  topic: { type: String, required: true },
+  question: { type: String, required: true },
+  options: { type: [String], required: true },
+  correctIndex: { type: Number, required: true, select: false }, // Mặc định ẩn khỏi mọi query client
+  explanation: { type: String, required: true },
+  rewardCoins: { type: Number, required: true, default: 80 },
+  rewardXp: { type: Number, required: true, default: 50 },
+  difficulty: { type: String, default: 'medium' },
+  is_active: { type: Number, default: 1 },
+  created_at: { type: Date, default: Date.now },
+})
+
+export const QuizQuestionModel = mongoose.model<IQuizQuestion>('QuizQuestion', QuizQuestionSchema)

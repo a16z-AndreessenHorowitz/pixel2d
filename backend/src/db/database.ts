@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { CONFIG } from '../config/index.js'
-import { ShopItemModel } from './models.js'
+import { ShopItemModel, QuizQuestionModel } from './models.js'
+import { BLOCKCHAIN_QUIZ_CATALOG } from '../constants/quizQuestions.js'
 import type { ShopItem } from '../types/index.js'
 
 let memoryServerInstance: any = null
@@ -20,6 +21,7 @@ export async function connectDatabase(): Promise<typeof mongoose> {
     })
     console.log(`🍃 Connected successfully to MongoDB: ${CONFIG.MONGODB_URI}`)
     await seedShopItems()
+    await seedQuizQuestions()
     return mongoose
   } catch (err: any) {
     console.warn(`[Database] Could not connect to external MongoDB: ${err.message}`)
@@ -35,6 +37,7 @@ export async function connectDatabase(): Promise<typeof mongoose> {
     await mongoose.connect(memoryUri)
     console.log(`🍃 Connected successfully to MongoDB (Embedded Engine) at: ${memoryUri}`)
     await seedShopItems()
+    await seedQuizQuestions()
     return mongoose
   } catch (memErr: any) {
     console.error('[Database] Failed to initialize MongoDB embedded engine:', memErr)
@@ -114,6 +117,31 @@ export async function seedShopItems(): Promise<void> {
     )
   }
   console.log(`[Database] Seeded default shop items into MongoDB.`)
+}
+
+export async function seedQuizQuestions(): Promise<void> {
+  for (const q of BLOCKCHAIN_QUIZ_CATALOG) {
+    await QuizQuestionModel.updateOne(
+      { id: q.id },
+      {
+        $setOnInsert: {
+          id: q.id,
+          topic: q.topic,
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correctIndex,
+          explanation: q.explanation,
+          rewardCoins: q.rewardCoins,
+          rewardXp: q.rewardXp,
+          difficulty: 'medium',
+          is_active: 1,
+          created_at: new Date(),
+        },
+      },
+      { upsert: true },
+    )
+  }
+  console.log(`[Database] Seeded ${BLOCKCHAIN_QUIZ_CATALOG.length} blockchain quiz questions into MongoDB.`)
 }
 
 export const DEFAULT_INITIAL_TOOLBAR = [
