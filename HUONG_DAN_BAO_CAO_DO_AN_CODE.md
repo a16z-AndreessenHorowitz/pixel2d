@@ -19,6 +19,7 @@
 10. [Chi tiết Chức năng 9: Rút Token & Ký số EIP-712 (Web3 & Token Exchange)](#ch%E1%BB%A9c-n%C4%83ng-9-r%C3%BAt-token--k%C3%BD-s%E1%BB%91-eip-712-web3)
 11. [Chi tiết Chức năng 10: Âm thanh Retro 8-bit bằng Web Audio API](#ch%E1%BB%A9c-n%C4%83ng-10-%C3%A2m-thanh-8-bit-retro-sound-engine)
 12. [Bộ 15 Câu hỏi Giáo viên hay hỏi nhất & Câu trả lời mẫu (FAQ Phản Biện)](#12-b%E1%BB%99-c%C3%A2u-h%E1%BB%8Fi-gi%C3%A1o-vi%C3%AAn-hay-h%E1%BB%8Fi-nh%E1%BA%A5t--c%C3%A2u-tr%E1%BA%A3-l%E1%BB%9Di-m%E1%BA%ABu)
+13. [Bảng Ma Trận Tra Cứu Nhanh Toàn Bộ Chức Năng (Quick Reference Matrix)](#13-b%E1%BA%A3ng-ma-tr%E1%BA%ADn-tra-c%E1%BB%A9u-nhanh-to%C3%A0n-b%E1%BB%99-ch%E1%BB%A9c-n%C4%83ng-d%E1%BB%B1-%C3%A1n)
 
 ---
 
@@ -139,34 +140,39 @@ Trái tim gameplay của trò chơi. Người chơi chăm sóc 24 ô đất, gie
 Quản lý trang bị công cụ (Cuốc, Bình tưới, Liềm), các loại hạt giống và nông sản thu hoạch được. Hỗ trợ thao tác kéo thả (Drag and Drop) trực quan.
 
 ### 2. Các file code phụ trách
-- `front_end/src/hooks/useInventoryManager.ts`: Quản lý toàn bộ State kho đồ và logic kéo thả.
+- `front_end/src/hooks/useInventoryManager.ts`: Quản lý toàn bộ State kho đồ và logic kéo thả, gộp số lượng.
+- `front_end/src/hooks/useGameKeyboardShortcuts.ts`: Bắt phím tắt 1-8 chọn nhanh công cụ (hỗ trợ cả hàng phím số `Digit1-8` lẫn bàn phím số phụ `Numpad1-8`).
 - `front_end/src/game/inventory/inventory.ts`: Định nghĩa kích thước kho đồ (24 ô), thanh công cụ (8 ô), lưu trữ vào `localStorage`.
-- `front_end/src/pages/GamePage.tsx`: Render thanh Toolbar dưới đáy màn hình và Modal kho đồ (Phím tắt `I`).
+- `front_end/src/pages/GamePage.tsx` & `GamePage.css`: Render thanh Toolbar dưới đáy màn hình, Modal kho đồ (Phím tắt `I`) và thanh ăn hồi phục riêng biệt.
 
 ### 3. Cơ chế kỹ thuật nổi bật
 - **HTML5 Drag & Drop chuẩn**: Sử dụng `event.dataTransfer.setData('application/x-inventory')` để truyền chỉ số slot nguồn sang slot đích mà không cần cài thêm thư viện ngoài nặng nề.
 - **Hỗ trợ Stackable thông minh**: Khi kéo thả hạt giống hoặc nông sản cùng loại vào nhau, hệ thống tự động gộp số lượng (`quantity += newQuantity`).
+- **Thanh tương tác ăn nông sản riêng biệt (`inventory-eat-bar`)**: Khi người chơi nhấp chọn một loại quả trong túi đồ, giao diện hiển thị thanh ăn chuyên dụng phía dưới (ví dụ: `🍽️ Bắp (+15⚡ Năng lượng) [Ăn ngay]`), khắc phục hoàn toàn tình trạng nút ăn bị nhồi nhét bên trong từng ô nhỏ làm vỡ layout pixel-art.
 - **Namespace LocalStorage theo ví**: Dữ liệu kho đồ được lưu theo key `pixel_farm_inventory_${address}`. Khi người chơi đổi ví MetaMask hoặc đăng nhập tài khoản khác, kho đồ sẽ chuyển sang đúng người đó, không bị lẫn lộn dữ liệu.
 
 ---
 
-## CHỨC NĂNG 4: THỂ LỰC, CẤP ĐỘ & HỒI PHỤC (ENERGY & XP)
+## CHỨC NĂNG 4: THỂ LỰC, CẤP ĐỘ, HỒI PHỤC & ĐỒNG BỘ AUTO-SAVE
 
 ### 1. Mục đích chức năng
-Tạo tính thử thách (resource management) tương tự tựa game nổi tiếng Pixels.xyz. Người chơi không thể cày cuốc vô hạn mà phải tính toán sử dụng thể lực và ăn nông sản để hồi sức.
+Tạo tính thử thách (resource management) tương tự tựa game nổi tiếng Pixels.xyz. Người chơi không thể cày cuốc vô hạn mà phải tính toán sử dụng thể lực và ăn nông sản để hồi sức, đồng thời toàn bộ tiến trình game được đồng bộ tự động lên Cloud Database.
 
 ### 2. Các file code phụ trách
 - `front_end/src/hooks/usePhaserGameBridge.ts`: Lắng nghe event `farm-action-energy`, tính toán Level Up.
 - `front_end/src/hooks/useInventoryManager.ts`: Hàm `handleEatItem`.
 - `front_end/src/components/TopLeftHUD.tsx`: Thanh hiển thị % Energy (xanh lá/vàng/đỏ) và Level/XP.
+- `front_end/src/pages/GamePage.tsx`: Xử lý lưu tự động (Auto-Save Debounce 1s) và nhận sự kiện `sync-game-state`.
+- `backend/src/routes/game.ts`: API `POST /api/game/save` và `GET /api/game/state`.
 
-### 3. Quy tắc tính toán
+### 3. Quy tắc tính toán & Đồng bộ dữ liệu
 - **Tiêu hao**: Mỗi lần cuốc đất hoặc tưới nước tốn **2 điểm Năng lượng (⚡)**.
 - **Cơ chế kiệt sức (Exhaustion)**: Khi Năng lượng < 2, hành động bị chặn (`event.preventDefault()`), phát âm thanh kiệt sức `soundEngine.playExhausted()` và hiện popup cảnh báo màu đỏ.
 - **Cơ chế Ăn (Eating)**: Người chơi có thể ăn trực tiếp nông sản (Bắp +15⚡, Lúa +10⚡, Dâu +20⚡, Bí đỏ +30⚡, Dưa hấu +40⚡, Cá các loại +18~60⚡).
 - **Thăng cấp (Level Up)**:
   $$\text{XP cần lên cấp} = \text{Level hiện tại} \times 100$$
   Khi Level Up: Tự động hồi đầy **100% Năng lượng**, đồng thời **tăng vĩnh viễn +5 Năng lượng tối đa** (Max Energy tăng từ 100 ➔ 105 ➔ 110...).
+- **Cơ chế Debounce Auto-Save (1 giây)**: Bất cứ khi nào Coin, Năng lượng, Cấp độ hoặc XP thay đổi trên giao diện, hook tự động đếm ngược 1000ms rồi âm thầm gửi `POST /api/game/save` lên Backend lưu vào MongoDB Atlas, loại bỏ tình trạng spam request và đảm bảo không mất dữ liệu khi người dùng vô tình reload trang.
 
 ---
 
@@ -214,40 +220,47 @@ Tạo cốt truyện và hướng dẫn người chơi mới làm quen với nô
 
 ---
 
-## CHỨC NĂNG 8: TRẮC NGHIỆM BLOCKCHAIN (QUIZ)
+## CHỨC NĂNG 8: TRẮC NGHIỆM BLOCKCHAIN (QUIZ & LEARN-TO-EARN)
 
 ### 1. Mục đích chức năng
-Chức năng **"Learn-to-Earn"**: Giúp người chơi vừa giải trí vừa trang bị kiến thức bảo mật Web3 (chống lừa đảo phishing, hiểu Seed Phrase, Gas Fee, EIP-712).
+Chức năng **"Learn-to-Earn"**: Giúp người chơi vừa giải trí vừa trang bị kiến thức bảo mật Web3 (chống lừa đảo phishing, hiểu Seed Phrase, Gas Fee, EIP-712). Hoàn thành mỗi câu hỏi sẽ được thưởng trực tiếp Coin và EXP vào tài khoản game.
 
-### 2. Các file code phụ trách
-- `front_end/src/components/QuizModal.tsx`: Giao diện làm bài trắc nghiệm, hiển thị giải thích đáp án.
-- `backend/src/constants/quizQuestions.ts`: Ngân hàng 10 câu hỏi chuẩn hóa.
-- `backend/src/services/quizService.ts`: Logic chấm điểm.
-- `backend/src/routes/quiz.ts`: API `/api/quiz/questions` và `/api/quiz/submit`.
+### 2. Vị trí trên giao diện & Phím tắt
+- **Vị trí UI**: Được đặt tại **Góc trên bên trái màn hình (Top-Left HUD)** - nằm trong cụm menu vòng cung bán nguyệt (`radial-arc-menu`) với icon mũ cử nhân 🎓, Theme Indigo phát sáng, cùng huy hiệu `EARN` đỏ nổi bật (ngay cạnh các nút Nông trại, GameFi Hub, NFT Shop, Rút Token và Bản đồ).
+- **Phím tắt nhanh**: Nhấn phím **`Q`** trên bàn phím bất kỳ lúc nào để mở/đóng modal làm bài.
 
-### 3. Cơ chế bảo mật chống gian lận
-- Khi client gọi `GET /api/quiz/questions`, Backend **chủ động giấu trường `correctIndex`** của những câu hỏi người chơi chưa làm. Do đó người chơi không thể "Inspect Element / F12" để xem trước đáp án.
-- Khi người chơi gửi câu trả lời lên `POST /api/quiz/submit`, Backend mới so khớp:
+### 3. Các file code phụ trách
+- `front_end/src/components/TopLeftHUD.tsx` & `TopLeftHUD.css`: Nút bấm 🎓 góc trên bên trái, tính toán tọa độ vòng cung và theme `radial-arc-btn--indigo`.
+- `front_end/src/components/QuizModal.tsx` & `QuizModal.css`: Giao diện modal làm bài trắc nghiệm, thanh chuyển câu hỏi và hiển thị giải thích chi tiết.
+- `front_end/src/hooks/useGameKeyboardShortcuts.ts`: Bắt sự kiện phím tắt `Q`.
+- `backend/src/constants/quizQuestions.ts`: Ngân hàng 10 câu hỏi Web3 chuẩn hóa kèm giải thích đáp án.
+- `backend/src/services/quizService.ts`: Thuật toán chấm điểm, bảo vệ chống gian lận và cộng thưởng vào cơ sở dữ liệu.
+- `backend/src/routes/quiz.ts`: API endpoint `GET /api/quiz/questions` và `POST /api/quiz/submit`.
+
+### 4. Cơ chế bảo mật chống gian lận
+- **Ẩn đáp án từ Backend**: Khi client gọi `GET /api/quiz/questions`, Backend chạy qua bộ lọc `safeQuestions` và **chủ động xóa bỏ trường `correctIndex`** của những câu hỏi người chơi chưa làm. Do đó người chơi không thể dùng F12 / Inspect Network để xem trước đáp án.
+- **Xác thực chấm điểm Server-side**: Khi người chơi gửi câu trả lời lên `POST /api/quiz/submit`, Backend mới so khớp:
   - Nếu **Đúng**: Cộng Coin/EXP vào MongoDB Atlas, đánh dấu ID câu hỏi vào mảng `quiz_answered` và trả về lời giải thích chi tiết.
   - Nếu **Sai**: Không trừ tiền, cho phép đọc giải thích để làm lại.
   - Nếu **Đã nhận thưởng trước đó**: Từ chối trả thưởng thêm lần nữa (chống gian lận spam thưởng).
 
 ---
 
-## CHỨC NĂNG 9: RÚT TOKEN & KÝ SỐ EIP-712 (WEB3)
+## CHỨC NĂNG 9: RÚT TOKEN & KÝ SỐ EIP-712 (WEB3 SEPOLIA)
 
 ### 1. Mục đích chức năng
-Trọng tâm công nghệ Blockchain của đồ án. Cho phép quy đổi Coin trong game sang đồng tiền số thật trên mạng thử nghiệm Ethereum Sepolia (`$PIXEL Token`).
+Trọng tâm công nghệ Blockchain của đồ án. Cho phép quy đổi Coin trong game sang đồng tiền số thật trên mạng thử nghiệm Ethereum Sepolia (`$PIXEL Token - ERC-20`).
 
 ### 2. Các file code phụ trách
-- **Smart Contract**: `contracts/contracts/PixelFarmToken.sol` (Hợp đồng ERC-20 chuẩn OpenZeppelin có cơ chế Faucet và Claim bằng chữ ký Backend).
+- **Smart Contract**: `contracts/contracts/PixelFarmToken.sol` (Hợp đồng ERC-20 chuẩn OpenZeppelin deployed tại địa chỉ Sepolia `0x8350cac45079a5CA9781e8C8170bA82b54134B2A`, Chain ID `11155111`).
 - **Backend Signer Service**:
-  - `backend/src/services/web3SignerService.ts`: Thuật toán ký EIP-712 Typed Data.
-  - `backend/src/services/transactionService.ts`: Xác minh receipt on-chain, Rollback khi hủy và kiểm tra Idempotency khi nạp.
-  - `backend/src/constants/exchangePackages.ts`: Các gói đổi thưởng.
+  - `backend/src/services/web3SignerService.ts`: Thuật toán ký EIP-712 Typed Data, chuẩn hóa `getAddress` checksum, kiểm tra Cooldown (chỉ tính cho claim confirmed), và auto-rollback claim pending > 20s.
+  - `backend/src/services/transactionService.ts`: Xác minh receipt on-chain qua RPC Sepolia, Rollback khi hủy và kiểm tra Idempotency khi nạp.
+  - `backend/src/constants/exchangePackages.ts`: Định nghĩa các gói quy đổi token.
+  - `backend/src/routes/game.ts`: Auto-Rollback tự động quét và hoàn trả coin pending gián đoạn mỗi khi mở game.
 - **Frontend Hook & UI**:
-  - `front_end/src/web3/useWeb3.ts`: Tương tác ví MetaMask, gọi hàm Smart Contract bằng `ethers.BrowserProvider`.
-  - `front_end/src/components/ClaimTokenModal.tsx`: Giao diện chọn gói và rút $PIXEL.
+  - `front_end/src/web3/useWeb3.ts`: Quản lý ví MetaMask, bắt sự kiện `chainChanged` cập nhật state mà **không reload lại trang web**.
+  - `front_end/src/components/ClaimTokenModal.tsx`: Modal rút $PIXEL, **tự động chuyển mạng sang Ethereum Sepolia (`0xaa36a7`)**, đồng bộ coin trước khi ký và kích hoạt sự kiện `sync-game-state`.
   - `front_end/src/components/GameFiHubModal.tsx`: Bảng điều khiển tài chính Web3.
 
 ### 3. Tỷ lệ quy đổi & Các gói nạp/rút
@@ -262,31 +275,37 @@ Trọng tâm công nghệ Blockchain của đồ án. Cho phép quy đổi Coin 
 ```
 NGƯỜI CHƠI                      BACKEND SERVER                      BLOCKCHAIN SEPOLIA
     │                                 │                                      │
-    │── 1. Gửi yêu cầu rút coin ────►│                                      │
+    │── 1. Kiểm tra mạng Sepolia ────►│                                      │
+    │   (Tự chuyển sang chain 11155111)                                     │
+    │── 2. Gửi yêu cầu rút coin ────►│                                      │
     │   (POST /create-claim-signature)│                                      │
-    │                                 │── 2. Kiểm tra Cooldown (300s)        │
-    │                                 │── 3. Kiểm tra số dư Coin trên DB    │
-    │                                 │── 4. Tạo Nonce & Deadline (1h)       │
-    │                                 │── 5. Ký EIP-712 bằng Private Key     │
-    │                                 │── 6. Tạm trừ Coin trong GameState    │
-    │◄─ 7. Trả về Signature & Nonce ──│                                      │
+    │                                 │── 3. Quét & hoàn coin pending > 20s │
+    │                                 │── 4. Kiểm tra Cooldown (chỉ confirmed)
+    │                                 │── 5. Kiểm tra số dư Coin trên DB    │
+    │                                 │── 6. Tạo Nonce & Deadline (1h)       │
+    │                                 │── 7. Chuẩn hóa getAddress EIP-55     │
+    │                                 │── 8. Ký EIP-712 bằng Private Key     │
+    │                                 │── 9. Tạm trừ Coin trong GameState    │
+    │◄─ 10. Trả về Signature & Nonce ─│                                      │
     │                                                                        │
-    │── 8. Gửi Transaction lên Smart Contract ──────────────────────────────►│
-    │      claimFarmingReward(amount, nonce, deadline, signature)            │
-    │                                                                        │── 9. Contract giải mã chữ ký
-    │                                                                        │      bằng ECDSA.recover
-    │                                                                        │── 10. Xác nhận đúng Signer
-    │                                                                        │── 11. Mint $PIXEL vào ví
-    │◄─ 12. MetaMask báo Giao dịch Thành công (TxHash) ─────────────────────│
+    │── 11. Gửi Transaction lên Smart Contract ─────────────────────────────►│
+    │       claimFarmingReward(amount, nonce, deadline, signature)           │
+    │                                                                        │── 12. Contract giải mã chữ ký
+    │                                                                        │       bằng ECDSA.recover
+    │                                                                        │── 13. Xác nhận đúng Signer
+    │                                                                        │── 14. Mint $PIXEL vào ví
+    │◄─ 15. MetaMask báo Giao dịch Thành công (TxHash) ────────────────────│
     │                                                                        │
-    │── 13. Gửi TxHash lên Backend xác nhận (POST /confirm-claim) ──────────►│
-    │                                                                        │── 14. Backend query RPC
+    │── 16. Gửi TxHash lên Backend xác nhận (POST /confirm-claim) ─────────►│
+    │                                                                        │── 17. Backend query RPC
     │                                                                        │       kiểm tra status == 1
-    │                                                                        │── 15. Chuyển trạng thái 'claimed'
+    │                                                                        │── 18. Chuyển trạng thái 'confirmed'
     │                                                                        │       Lưu TxHash vào DB
 ```
 
-> **Cơ chế Rollback an toàn**: Nếu ở Bước 8, người chơi bấm **"Reject" (Từ chối)** trên ví MetaMask, Frontend tự động gửi request `POST /api/web3/claim-reward-rollback`. Backend sẽ ngay lập tức hủy phiên pending và **hoàn trả 100% số Coin về tài khoản game**, đảm bảo người chơi không bao giờ bị mất oan Coin khi lỗi mạng.
+> **Cơ chế Rollback an toàn 2 tầng**:
+> 1. **Chủ động**: Nếu người chơi bấm **"Reject" (Từ chối)** trên ví MetaMask, Frontend tự động gửi request `POST /api/web3/claim-reward-rollback`. Backend sẽ ngay lập tức hủy phiên pending và **hoàn trả 100% số Coin về tài khoản game**, đồng thời kích hoạt `sync-game-state` cập nhật UI tức thì.
+> 2. **Tự động (Fail-safe)**: Nếu người chơi tắt trình duyệt, mất mạng hoặc treo giao dịch dở dang, Backend sẽ tự động phát hiện các phiên `pending` quá **20 giây** để tự động hủy và hoàn trả Coin vào tài khoản game khi người dùng mở lại game hoặc thực hiện thao tác tiếp theo. Người chơi không bao giờ bị mất oan Coin!
 
 ---
 
@@ -430,3 +449,24 @@ Dưới đây là 15 câu hỏi điển hình nhất mà giáo viên và hội �
    - Thành viên 2: Trình bày phần Backend Node.js, Database MongoDB và các thuật toán chấm điểm Quiz.
    - Thành viên 3: Trình bày phần Web3, Smart Contract Sepolia, cơ chế ký số EIP-712 và bảo mật chống tấn công.
 2. **Luôn mở sẵn code ở các file đã module hóa**: Khi giáo viên hỏi phần nào, mở ngay đúng file chuyên trách tương ứng (ví dụ hỏi chữ ký mở ngay `web3SignerService.ts`, hỏi kho đồ mở ngay `useInventoryManager.ts`), giáo viên sẽ đánh giá rất cao tính chuyên nghiệp và tính tổ chức mã nguồn của nhóm!
+
+---
+
+## 13. BẢNG MA TRẬN TRA CỨU NHANH TOÀN BỘ CHỨC NĂNG DỰ ÁN
+
+Bảng tổng hợp giúp cả nhóm tra cứu ngay trong 3 giây khi thầy cô chỉ điểm hỏi về bất kỳ tính năng nào trong buổi bảo vệ:
+
+| STT | Tên Chức Năng | File Frontend Phụ Trách | File Backend Phụ Trách | Smart Contract / Database | Vị trí UI & Phím Tắt | Tóm Tắt Cách Thức Hoạt Động |
+|:---:|---|---|---|---|:---:|---|
+| **1** | **Xác thực Đăng nhập & SIWE** | `front_end/src/components/AuthModal.tsx`<br>`front_end/src/components/auth/SiweTab.tsx`<br>`front_end/src/components/auth/LoginTab.tsx` | `backend/src/routes/auth.ts`<br>`backend/src/services/siweAuthService.ts`<br>`backend/src/services/userAuthService.ts` | **Collection:** `users`, `siwenonces`<br>JWT 7 ngày, Salt SHA-256 | Top-Right HUD (Icon 🔑 / 👨‍🌾) | Sinh chuỗi Nonce ngẫu nhiên, yêu cầu ví ký `personal_sign`. Dùng `ethers.verifyMessage` kiểm tra đúng ví và cấp JWT. |
+| **2** | **Trồng Trọt 24 Ô Đất** | `front_end/src/game/objects/FarmPlot.ts`<br>`front_end/src/game/managers/PlotGridManager.ts`<br>`front_end/src/hooks/usePhaserGameBridge.ts` | `backend/src/routes/game.ts` | **Collection:** `gamestates` (lưu mảng plots, crops, mature) | 2 Luống đất trung tâm màn hình (Chuột trái) | Máy trạng thái 4 bước: `empty` ➔ `tilled` (xới đất, -2⚡) ➔ `planted` (gieo hạt) ➔ `watered` (tưới nước, -2⚡) ➔ `mature` (thu hoạch hạt, +Coin/XP). |
+| **3** | **Quản Lý Kho Đồ & Thanh Công Cụ** | `front_end/src/hooks/useInventoryManager.ts`<br>`front_end/src/hooks/useGameKeyboardShortcuts.ts`<br>`front_end/src/pages/GamePage.tsx` | `backend/src/routes/game.ts` | **Collection:** `gamestates` (lưu inventory, toolbar)<br>`localStorage` theo ví | Toolbar dưới đáy, Balo góc trái toolbar (**Phím I**, phím **1-8**) | Kéo thả HTML5 Drag-Drop giữa 24 ô kho và 8 ô toolbar, tự động gộp stackable, thanh ăn nông sản hồi năng lượng tách biệt bên dưới. |
+| **4** | **Năng Lượng, Thăng Cấp & Auto-Save** | `front_end/src/components/TopLeftHUD.tsx`<br>`front_end/src/components/StatsPanel.tsx`<br>`front_end/src/hooks/usePhaserGameBridge.ts` | `backend/src/routes/game.ts` | **Collection:** `gamestates`<br>Debounce 1s Auto-Save | Top-Left HUD (Góc trên bên trái) | Hành động tốn 2⚡, < 2⚡ bị kiệt sức. Ăn nông sản hồi 10-60⚡. Mỗi 100 XP lên cấp: hồi 100% ⚡ và tăng vĩnh viễn +5 Max Energy. Tự động lưu lên MongoDB sau 1 giây. |
+| **5** | **Cửa Hàng Nông Sản (Hazel)** | `front_end/src/components/ShopModal.tsx` | `backend/src/routes/shop.ts` | **Collection:** `gamestates` (trừ/cộng coins & items) | Top-Left Arc Menu (Icon 🏪) hoặc gặp NPC Hazel (**Phím E**) | Tab Mua: Mua 5 loại hạt giống. Tab Bán: Bán nông sản đã thu hoạch thu lãi Coin (tỷ lệ lợi nhuận từ +80% đến +100%). |
+| **6** | **Minigame Câu Cá** | `front_end/src/game/fishing/fishingSystem.ts`<br>`front_end/src/game/fishing/FishingMinigame.ts`<br>`front_end/src/game/fishing/FishingPrompt.ts` | `backend/src/routes/game.ts` | **Collection:** `gamestates` (lưu cá vào inventory) | Hồ nước Zone 2 bên phải (**Phím E** + Giữ **Space / Chuột**) | Tiến lại gần bờ hồ bấm E ném phao. Khi cá cắn câu, điều khiển thanh trượt giữ khớp con cá. Bắt được 12 loài cá ngẫu nhiên. |
+| **7** | **Nhiệm Vụ & Đối Thoại NPC** | `front_end/src/components/DialogueModal.tsx`<br>`front_end/src/components/QuestPanel.tsx`<br>`front_end/src/data/dialogues.ts` | `backend/src/routes/quests.ts` | **Collection:** `gamestates` (`completedQuestIds`) | Bác Barney, Cô Hazel, Bảng nhiệm vụ góc phải | Trò chuyện nhận quà khởi nghiệp. Hoàn thành nhiệm vụ nhận Coin/XP với cơ chế chống nhận trùng (Anti-Replay). |
+| **8** | **Trắc Nghiệm Web3 (Learn-to-Earn)** | `front_end/src/components/TopLeftHUD.tsx`<br>`front_end/src/components/QuizModal.tsx`<br>`front_end/src/hooks/useGameKeyboardShortcuts.ts` | `backend/src/constants/quizQuestions.ts`<br>`backend/src/services/quizService.ts`<br>`backend/src/routes/quiz.ts` | **Collection:** `gamestates` (`quiz_answered`), `transactions` | **Top-Left HUD (Icon 🎓 với huy hiệu EARN)** hoặc bấm **Phím Q** | 10 câu hỏi bảo mật Web3. Backend giấu `correctIndex` chống F12 gian lận. Trả lời đúng nhận ngay Coin & EXP, có giải thích đáp án chi tiết. |
+| **9** | **Rút $PIXEL Token (EIP-712)** | `front_end/src/components/ClaimTokenModal.tsx`<br>`front_end/src/web3/useWeb3.ts` | `backend/src/services/web3SignerService.ts`<br>`backend/src/services/transactionService.ts`<br>`backend/src/routes/web3.ts` | **Smart Contract:** `PixelFarmToken.sol` (Sepolia `0x8350...`)<br>**Collection:** `claims`, `transactions` | Top-Left Arc Menu (Icon 🔄) hoặc GameFi Hub | Tự động chuyển mạng MetaMask sang Sepolia. Ký số EIP-712 chuẩn typed data. Hợp đồng giải mã và mint token. Có **Auto-Rollback 2 tầng** (chủ động khi bấm Hủy ví, và tự động quét phiên pending > 20s) đảm bảo không mất coin. |
+| **10** | **GameFi Hub & Kinh Tế Web3** | `front_end/src/components/GameFiHubModal.tsx` | `backend/src/routes/web3.ts` | **Collection:** `transactions`, `gamestates` (Leaderboard) | Top-Left Arc Menu (Icon 📊) hoặc bấm **Phím H** | Thống kê số dư on-chain/off-chain, tỷ lệ lạm phát, bảng xếp hạng Top nông dân giàu nhất, lịch sử nạp rút token. |
+| **11** | **Âm Thanh 8-bit Web Audio API** | `front_end/src/audio/SoundEngine.ts` | *Chạy hoàn toàn Client-side* | *Zero Dependency (0 KB mp3/wav)* | Nút 🎵 (BGM) và 🔊 (SFX) góc trên bên phải | Dùng Web Audio API `OscillatorNode` (sóng vuông, sóng sin, răng cưa) tổng hợp nhạc nền và 12 hiệu ứng âm thanh cổ điển tức thì, không tốn băng thông tải file. |
+| **12** | **Động Vật AI & Bản Đồ Mini** | `front_end/src/game/managers/AnimalManager.ts`<br>`front_end/src/game/managers/MapTerrainBuilder.ts`<br>`front_end/src/game/scenes/FarmScene.ts` | *Chạy trên Game Canvas* | *Phaser 3 Scene Graph* | Bãi cỏ trang trại (Gà, Bò) & Nút 📍 Bản đồ (**Phím M**) | Động vật sử dụng thuật toán Wandering AI tự tìm điểm đến ngẫu nhiên mỗi 3.5s với tween mượt mà. Nút Bản đồ thu phóng camera toàn cảnh nông trại. |

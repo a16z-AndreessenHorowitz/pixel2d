@@ -546,6 +546,8 @@ export function GamePage() {
         onOpenNftShop={() => setGameFiHubOpen(true)}
         onOpenClaim={() => setClaimModalOpen(true)}
         onOpenShop={() => setShopOpen(true)}
+        onOpenQuiz={() => setQuizModalOpen(true)}
+        isQuizOpen={quizModalOpen}
       />
 
       {/* Top Right HUD */}

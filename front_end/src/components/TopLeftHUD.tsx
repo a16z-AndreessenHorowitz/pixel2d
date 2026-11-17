@@ -29,6 +29,10 @@ export interface TopLeftHUDProps {
   onOpenClaim: () => void
   /** Callback mở Cửa hàng hạt giống (tùy chọn) */
   onOpenShop?: () => void
+  /** Callback mở Modal Trắc Nghiệm Blockchain */
+  onOpenQuiz?: () => void
+  /** Trạng thái mở Modal Trắc Nghiệm Blockchain */
+  isQuizOpen?: boolean
 
   /** Trạng thái góc nhìn toàn cảnh nông trại */
   isOverview?: boolean
@@ -41,7 +45,7 @@ interface RadialActionItem {
   label: string
   sublabel: string
   icon: string
-  theme: 'green' | 'purple' | 'amber' | 'cyan' | 'blue' | 'emerald'
+  theme: 'green' | 'purple' | 'amber' | 'cyan' | 'blue' | 'emerald' | 'indigo'
   onClick: () => void
   isActive?: boolean
   badge?: string | number
@@ -64,6 +68,8 @@ export function TopLeftHUD({
   onOpenNftShop,
   onOpenClaim,
   onOpenShop,
+  onOpenQuiz,
+  isQuizOpen,
   isOverview: controlledOverview,
   onToggleOverview,
 }: TopLeftHUDProps) {
@@ -107,7 +113,11 @@ export function TopLeftHUD({
 
   // Danh sách các nút chức năng với tọa độ cố định trực quan (dễ tinh chỉnh độc lập)
   const actions: RadialActionItem[] = useMemo(() => {
-    // 1. Cấu hình vị trí khi có 5 nút thông thường
+    const hasShop = Boolean(onOpenShop)
+    const hasQuiz = Boolean(onOpenQuiz)
+
+    // Cấu hình vị trí theo số lượng nút:
+    // 1. 5 nút cơ bản: farm, hub, nftShop, claim, map
     const defaultPositions = {
       farm: { x: 175, y: 15 },
       hub: { x: 165, y: 65 },
@@ -116,8 +126,8 @@ export function TopLeftHUD({
       map: { x: 35, y: 165 },
     }
 
-    // 2. Cấu hình vị trí khi có thêm nút thứ 6 (Tiệm hạt giống)
-    const expandedPositions = {
+    // 2. 6 nút khi có Tiệm Hạt Giống: farm, hub, nftShop, seedShop, claim, map
+    const shopPositions = {
       farm: { x: 175, y: 15 },
       hub: { x: 165, y: 55 },
       nftShop: { x: 150, y: 95 },
@@ -126,8 +136,31 @@ export function TopLeftHUD({
       map: { x: 35, y: 165 },
     }
 
-    const hasShop = Boolean(onOpenShop)
-    const pos = hasShop ? expandedPositions : defaultPositions
+    // 3. 6 nút khi có Trắc Nghiệm Quiz: farm, hub, quiz, nftShop, claim, map
+    const quizPositions = {
+      farm: { x: 178, y: 14 },
+      hub: { x: 168, y: 56 },
+      quiz: { x: 146, y: 98 },
+      nftShop: { x: 118, y: 132 },
+      claim: { x: 80, y: 155 },
+      map: { x: 30, y: 168 },
+    }
+
+    // 4. 7 nút đầy đủ cả Shop và Quiz: farm, hub, quiz, nftShop, seedShop, claim, map
+    const fullPositions = {
+      farm: { x: 188, y: 10 },
+      hub: { x: 178, y: 50 },
+      quiz: { x: 158, y: 88 },
+      nftShop: { x: 132, y: 124 },
+      seedShop: { x: 100, y: 154 },
+      claim: { x: 62, y: 176 },
+      map: { x: 18, y: 186 },
+    }
+
+    let pos: Record<string, { x: number; y: number }> = defaultPositions
+    if (hasShop && hasQuiz) pos = fullPositions
+    else if (hasShop) pos = shopPositions
+    else if (hasQuiz) pos = quizPositions
 
     const list: RadialActionItem[] = [
       {
@@ -155,15 +188,46 @@ export function TopLeftHUD({
         customPos: pos.hub,
         onClick: onOpenGameFiHub,
       },
-      {
-        id: 'nft-shop',
-        label: 'NFT Shop',
-        sublabel: 'Trang bị Buff tăng tốc',
-        icon: '✨',
-        theme: 'amber',
-        customPos: pos.nftShop,
-        onClick: onOpenNftShop,
-      },
+    ]
+
+    if (onOpenQuiz) {
+      list.push({
+        id: 'quiz',
+        label: 'Trắc Nghiệm Web3',
+        sublabel: 'Lớp học Blockchain & nhận Coin',
+        icon: '🎓',
+        theme: 'indigo',
+        shortcut: 'Q',
+        badge: 'EARN',
+        isActive: isQuizOpen,
+        customPos: pos.quiz,
+        onClick: onOpenQuiz,
+      })
+    }
+
+    list.push({
+      id: 'nft-shop',
+      label: 'NFT Shop',
+      sublabel: 'Trang bị Buff tăng tốc',
+      icon: '✨',
+      theme: 'amber',
+      customPos: pos.nftShop,
+      onClick: onOpenNftShop,
+    })
+
+    if (onOpenShop) {
+      list.push({
+        id: 'seed-shop',
+        label: 'Tiệm Hạt Giống',
+        sublabel: 'Mua nông sản & vật phẩm',
+        icon: '🏪',
+        theme: 'emerald',
+        customPos: pos.seedShop,
+        onClick: onOpenShop,
+      })
+    }
+
+    list.push(
       {
         id: 'claim',
         label: 'Rút $PIXEL',
@@ -185,24 +249,14 @@ export function TopLeftHUD({
         customPos: pos.map,
         onClick: handleToggleMap,
       },
-    ]
-
-    if (onOpenShop) {
-      list.splice(3, 0, {
-        id: 'seed-shop',
-        label: 'Tiệm Hạt Giống',
-        sublabel: 'Mua nông sản & vật phẩm',
-        icon: '🏪',
-        theme: 'emerald',
-        customPos: expandedPositions.seedShop,
-        onClick: onOpenShop,
-      })
-    }
+    )
 
     return list
   }, [
     onOpenFarm,
     onOpenGameFiHub,
+    onOpenQuiz,
+    isQuizOpen,
     onOpenNftShop,
     onOpenClaim,
     onOpenShop,
@@ -210,7 +264,7 @@ export function TopLeftHUD({
     handleToggleMap,
   ])
 
-  const iconSize = 42
+  const iconSize = onOpenShop && onOpenQuiz ? 40 : 42
 
   return (
     <div className="top-left-hud" aria-label="HUD Nông Trại & Menu Bán Nguyệt">
