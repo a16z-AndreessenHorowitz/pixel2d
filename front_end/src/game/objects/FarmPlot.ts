@@ -195,11 +195,6 @@ export class FarmPlot extends Phaser.GameObjects.Container {
       } else {
         this.shake()
         this.showFloatingText('🌱 Cần chọn hạt giống để gieo!', '#ffd166')
-        window.dispatchEvent(
-          new CustomEvent('farm-out-of-seeds', {
-            detail: { seedId: tool },
-          }),
-        )
       }
       return
     }

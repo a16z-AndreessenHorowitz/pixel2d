@@ -27,6 +27,23 @@ import './GamePage.css'
 
 const TOOL_KEYS = [1, 2, 3, 4, 5, 6, 7, 8]
 
+/**
+ * Chuẩn hóa mảng slot nhận từ backend:
+ * - Ưu tiên icon/label từ ITEM_DEFINITIONS (đảm bảo đúng asset local)
+ * - Fallback về label/name từ dữ liệu backend nếu chưa có trong definitions
+ */
+function normalizeSlots(raw: any[]): (import('../game/inventory/inventory').InventoryItem | null)[] {
+  return raw.map((t: any) => {
+    if (!t) return null
+    const def = ITEM_DEFINITIONS[t.id as keyof typeof ITEM_DEFINITIONS]
+    return {
+      ...t,
+      label: def?.label || t.label || t.name || t.id,
+      icon: def?.icon || t.icon,
+    }
+  })
+}
+
 export function GamePage() {
   const [coins, setCoins] = useState(player.coins)
   const [energy, setEnergy] = useState(100)
@@ -200,10 +217,10 @@ export function GamePage() {
               }
               // Đồng bộ Kho đồ và Toolbar từ cơ sở dữ liệu MongoDB
               if (Array.isArray(data.state.toolbar) && data.state.toolbar.length > 0) {
-                setToolbar(data.state.toolbar)
+                setToolbar(normalizeSlots(data.state.toolbar))
               }
               if (Array.isArray(data.state.inventory) && data.state.inventory.length > 0) {
-                setInventory(data.state.inventory)
+                setInventory(normalizeSlots(data.state.inventory))
               }
             }
           })
@@ -345,8 +362,8 @@ export function GamePage() {
         if (data.success) {
           soundEngine.playCoin()
           if (typeof data.remainingCoins === 'number') setCoins(data.remainingCoins)
-          if (Array.isArray(data.toolbar)) setToolbar(data.toolbar)
-          if (Array.isArray(data.inventory)) setInventory(data.inventory)
+          if (Array.isArray(data.toolbar)) setToolbar(normalizeSlots(data.toolbar))
+          if (Array.isArray(data.inventory)) setInventory(normalizeSlots(data.inventory))
           showGameAlert({
             title: 'Mua Thành Công',
             message: `Bạn đã mua thành công ${item.bundleQuantity}x ${item.name}! Hãy chọn hạt giống trên thanh công cụ để gieo trồng.`,

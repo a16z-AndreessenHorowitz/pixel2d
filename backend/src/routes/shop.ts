@@ -62,6 +62,8 @@ shopRouter.post('/buy', optionalAuth, async (req: AuthenticatedRequest, res: Res
     }
 
     const toolbar: (InventorySlot | null)[] = [...gameState.toolbar]
+    // Đảm bảo toolbar luôn có đủ 8 slot (pad null) để findIndex không trả -1
+    while (toolbar.length < 8) toolbar.push(null)
     const inventory: (InventorySlot | null)[] = [...gameState.inventory]
 
     // Helper to add item with stacking
