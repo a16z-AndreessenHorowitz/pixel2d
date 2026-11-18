@@ -86,7 +86,7 @@ function normalizeSlots(raw: any[]): (import('../game/inventory/inventory').Inve
 }
 
 export function GamePage() {
-  const [coins, setCoins] = useState(player.coins)
+  const [coins, setCoins] = useState(0)
   const [energy, setEnergy] = useState(100)
   const [maxEnergy, setMaxEnergy] = useState(100)
   const energyRef = useRef(100)
@@ -122,7 +122,7 @@ export function GamePage() {
       visitedExchange: false,
       boughtShop: 0,
       fishCaught: 0,
-      coins: player.coins,
+      coins: 0,
     }
   })
 
@@ -223,13 +223,34 @@ export function GamePage() {
       const customEvent = event as CustomEvent<any>
       if (customEvent.detail && typeof customEvent.detail === 'object' && 'user' in customEvent.detail) {
         setCurrentUser(customEvent.detail.user)
+        if (!customEvent.detail.user) {
+          setCoins(0)
+        }
       } else {
         setCurrentUser(customEvent.detail ?? null)
+        if (!customEvent.detail) {
+          setCoins(0)
+        }
       }
     }
     window.addEventListener('auth-user-changed', handleAuthUserChanged)
     return () => window.removeEventListener('auth-user-changed', handleAuthUserChanged)
   }, [])
+
+  // Theo dõi sự thay đổi của effectiveAddress: khi chưa kết nối ví hoặc đổi sang ví mới thì reset Coins về 0
+  const prevEffectiveAddressRef = useRef<string | null | undefined>(undefined)
+  useEffect(() => {
+    if (!effectiveAddress) {
+      setCoins(0)
+      prevEffectiveAddressRef.current = null
+      return
+    }
+
+    if (prevEffectiveAddressRef.current !== undefined && prevEffectiveAddressRef.current !== effectiveAddress) {
+      setCoins(0)
+    }
+    prevEffectiveAddressRef.current = effectiveAddress
+  }, [effectiveAddress])
 
   // BGM Retro âm thanh nền khi click lần đầu
   useEffect(() => {
@@ -287,6 +308,8 @@ export function GamePage() {
             }
           })
           .catch(() => {})
+      } else {
+        setCoins(0)
       }
     }
 
@@ -730,7 +753,7 @@ export function GamePage() {
     setCurrentUser(null)
     disconnect()
     setCompletedQuestIds([])
-    setCoins(100)
+    setCoins(0)
     setLevel(1)
     setXp(0)
     setEnergy(100)
@@ -740,7 +763,7 @@ export function GamePage() {
       visitedExchange: false,
       boughtShop: 0,
       fishCaught: 0,
-      coins: 100,
+      coins: 0,
     })
     try {
       localStorage.removeItem('pixel_farm_user')
