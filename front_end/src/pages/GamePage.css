@@ -178,6 +178,17 @@
   white-space: nowrap;
 }
 
+/* Spritesheet icon dùng <span style="background-image:..."> — không áp label style */
+.game-toolbar span[style*="background-image"] {
+  font-size: unset;
+  font-weight: unset;
+  letter-spacing: unset;
+  line-height: unset;
+  color: unset;
+  text-transform: unset;
+  white-space: unset;
+}
+
 .tool-selected span { color: #ccffd8; }
 
 .toolbar-quantity {

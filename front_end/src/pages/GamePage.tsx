@@ -27,6 +27,46 @@ import './GamePage.css'
 
 const TOOL_KEYS = [1, 2, 3, 4, 5, 6, 7, 8]
 
+/** Các item dùng spritesheet — cần render bằng <span> thay vì <img> */
+const SPRITESHEET_ROD = new Set(['fishing-rod'])
+const SPRITESHEET_FISH = new Set(['carp', 'tilapia', 'catfish', 'salmon', 'golden-fish'])
+
+/**
+ * Trả về inline style cho <span> thay thế <img> với spritesheet:
+ * - fishing-rod: 6 cột × 3 hàng → background-size: auto 300% để chỉ show hàng 1 (frame 0)
+ * - cá (strip 1 hàng): background-size: auto 100%; background-position: left center
+ * Trả về null nếu item không phải spritesheet → dùng <img> bình thường.
+ */
+function getSpriteStyle(id: string, icon: string): React.CSSProperties | null {
+  if (SPRITESHEET_ROD.has(id)) {
+    return {
+      display: 'inline-block',
+      width: '44px',
+      height: '44px',
+      backgroundImage: `url(${icon})`,
+      backgroundSize: 'auto 300%',
+      backgroundPosition: 'left top',
+      backgroundRepeat: 'no-repeat',
+      imageRendering: 'pixelated',
+      flexShrink: 0,
+    }
+  }
+  if (SPRITESHEET_FISH.has(id)) {
+    return {
+      display: 'inline-block',
+      width: '44px',
+      height: '44px',
+      backgroundImage: `url(${icon})`,
+      backgroundSize: 'auto 100%',
+      backgroundPosition: 'left center',
+      backgroundRepeat: 'no-repeat',
+      imageRendering: 'pixelated',
+      flexShrink: 0,
+    }
+  }
+  return null
+}
+
 /**
  * Chuẩn hóa mảng slot nhận từ backend:
  * - Ưu tiên icon/label từ ITEM_DEFINITIONS (đảm bảo đúng asset local)
@@ -790,11 +830,10 @@ export function GamePage() {
                       onDragStart={(e) => handleInventoryDragStart(e, index)}
                       title={item.label}
                     >
-                      <img
-                        src={item.icon}
-                        alt={item.label}
-                        draggable={false}
-                      />
+                      {getSpriteStyle(item.id, item.icon)
+                        ? <span style={getSpriteStyle(item.id, item.icon)!} aria-label={item.label} />
+                        : <img src={item.icon} alt={item.label} draggable={false} />
+                      }
                       {item.stackable && (
                         <span className="item-quantity">{item.quantity}</span>
                       )}
@@ -893,12 +932,10 @@ export function GamePage() {
               <small>{key}</small>
               {tool ? (
                 <>
-                  <img
-                    src={tool.icon}
-                    alt={tool.label}
-                    className="tool-icon"
-                    draggable={false}
-                  />
+                  {getSpriteStyle(tool.id, tool.icon)
+                    ? <span style={getSpriteStyle(tool.id, tool.icon)!} aria-label={tool.label} />
+                    : <img src={tool.icon} alt={tool.label} className="tool-icon" draggable={false} />
+                  }
                   <span>{tool.label}</span>
                   {tool.stackable && (
                     <span className="toolbar-quantity">{tool.quantity}</span>
