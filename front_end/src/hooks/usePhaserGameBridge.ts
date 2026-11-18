@@ -20,7 +20,7 @@ interface UsePhaserGameBridgeProps {
   setDialogueOpen: (open: boolean) => void
   setAuthModalOpen: (open: boolean) => void
   consumeSeed: (seedId: ToolId) => boolean
-  addItem: (item: InventoryItem) => void
+  addItem: (item: InventoryItem) => boolean
 }
 
 export function usePhaserGameBridge({
@@ -134,13 +134,38 @@ export function usePhaserGameBridge({
 
         const cropDef = ITEM_DEFINITIONS[crop.id as ToolId]
         if (cropDef) {
-          addItem({ ...cropDef, quantity: 1 })
+          const success = addItem({ ...cropDef, quantity: 1 })
+          if (!success) {
+            showGameAlert({
+              title: 'Kho Đồ Đầy',
+              message: `Túi đồ của bạn đã đầy! Không thể nhận thêm ${cropDef.label}. Hãy dọn bớt kho đồ hoặc bán nông sản!`,
+              type: 'warning',
+              icon: '🎒',
+            })
+          }
         }
       }
     }
 
+    const handleOutOfSeeds = () => {
+      showGameAlert({
+        title: '🌱 Hết Hạt Giống!',
+        message: 'Bạn đã dùng hết hạt giống trong túi! Hãy dùng Coin để mua thêm các gói hạt giống tại Tiệm Tạp Hóa.',
+        type: 'warning',
+        icon: '🛒',
+        confirmText: '🛒 Mở Tiệm Tạp Hóa',
+        onConfirm: () => {
+          window.dispatchEvent(new CustomEvent('open-shop-modal'))
+        },
+      })
+    }
+
     window.addEventListener('farm-harvest', handleFarmHarvest)
-    return () => window.removeEventListener('farm-harvest', handleFarmHarvest)
+    window.addEventListener('farm-out-of-seeds', handleOutOfSeeds)
+    return () => {
+      window.removeEventListener('farm-harvest', handleFarmHarvest)
+      window.removeEventListener('farm-out-of-seeds', handleOutOfSeeds)
+    }
   }, [addItem, currentUser, account, addXP, setCoins, setAuthModalOpen])
 
   // 4. Lắng nghe câu cá thành công

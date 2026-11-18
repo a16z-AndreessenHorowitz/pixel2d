@@ -46,6 +46,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
   private cropScale: number = 0.28
   private onHarvestCallback?: (crop: CropDefinition) => void
+  private isHarvesting: boolean = false
 
   constructor(scene: Phaser.Scene, options: FarmPlotOptions) {
     super(scene, options.x, options.y)
@@ -110,9 +111,9 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     }
   }
 
-  /** Gieo hạt vào ô đất đã xới (tilled). Không làm gì nếu ô đã có cây. */
+  /** Gieo hạt vào ô đất đã xới (tilled). Không làm gì nếu ô chưa xới hoặc đã có cây. */
   plant(cropId: CropId) {
-    if (this.status !== 'empty' && this.status !== 'tilled') return
+    if (this.status !== 'tilled') return
     this.cropId = cropId
     const crop = getCropById(cropId)
     this.cropScale = (this.size / 44) * (crop.scale ?? 0.28)
@@ -132,37 +133,88 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     this.startGrowTimer()
   }
 
-  /** Thu hoạch. Chỉ hoạt động khi mature. */
+  /** Thu hoạch. Chỉ hoạt động khi mature. Chặn spam click/autoclicker. */
   harvest() {
-    if (this.status !== 'mature') return
-    const crop = getCropById(this.cropId!)
+    if (this.status !== 'mature' || this.isHarvesting) return
+    this.isHarvesting = true
 
+    const crop = getCropById(this.cropId!)
     soundEngine.playHarvest()
     this.showFloatingText(`+${crop.harvestCoins} 🪙`, '#ffd700')
     this.animatePop()
     this.onHarvestCallback?.(crop)
 
-    // Reset về empty sau animation nhỏ
+    // Khóa trạng thái ngay lập tức về empty để tránh double-harvest exploit
+    this.status = 'empty'
+
     this.scene.time.delayedCall(300, () => {
       this.growTimer?.remove()
       this.growTimer = null
       this.progressTween?.remove()
       this.progressTween = null
       this.cropId = null
-      this.setStatus('empty')
+      this.isHarvesting = false
+      this.renderStatus()
     })
   }
 
   /** Xử lý click từ người chơi với tool đang chọn */
   handleTool(tool: string) {
+    // 1. Xử lý trường hợp ô đất đã xới (tilled)
+    if (this.status === 'tilled') {
+      if (tool.endsWith('-seed')) {
+        const cropId = tool.replace('-seed', '') as CropId
+        const plantEvent = new CustomEvent('farm-plant-crop', {
+          detail: { seedId: tool, cropId },
+          cancelable: true,
+        })
+        window.dispatchEvent(plantEvent)
+
+        if (!plantEvent.defaultPrevented) {
+          // Chỉ trừ năng lượng khi ĐÃ tiêu hao hạt giống thành công
+          const energyEvent = new CustomEvent('farm-action-energy', {
+            detail: { cost: 1, action: 'farming' },
+            cancelable: true,
+          })
+          window.dispatchEvent(energyEvent)
+
+          this.plant(cropId)
+        } else {
+          // Hết hạt giống: Không trừ năng lượng, thông báo và điều hướng mở Cửa hàng
+          this.shake()
+          this.showFloatingText('Hết hạt giống! 🛒 Mua ở Tiệm', '#ff6b6b')
+          window.dispatchEvent(
+            new CustomEvent('farm-out-of-seeds', {
+              detail: { seedId: tool, cropId },
+            }),
+          )
+        }
+      } else if (tool === 'hoe' || tool === 'gold-hoe') {
+        this.animateBounce()
+        this.showFloatingText('Đất đã được cày xới!')
+      } else {
+        this.shake()
+        this.showFloatingText('🌱 Cần chọn hạt giống để gieo!', '#ffd166')
+        window.dispatchEvent(
+          new CustomEvent('farm-out-of-seeds', {
+            detail: { seedId: tool },
+          }),
+        )
+      }
+      return
+    }
+
+    // 2. Xác thực hành động hợp lệ cho các trạng thái khác
     const isActionValid =
       (this.status === 'empty' && (tool === 'hoe' || tool === 'gold-hoe')) ||
-      (this.status === 'tilled' && tool.endsWith('-seed')) ||
       (this.status === 'planted' && (tool === 'watering-can' || tool === 'gold-watering-can')) ||
       (this.status === 'mature' && (tool === 'sickle' || tool === 'gold-sickle'))
 
     if (isActionValid) {
-      const energyCost = tool.endsWith('-seed') ? 1 : 2
+      // Công cụ Vàng NFT chỉ tốn 1 Năng lượng (ưu đãi NFT Buff), công cụ thường tốn 2
+      const isGoldTool = tool.startsWith('gold-')
+      const energyCost = isGoldTool ? 1 : 2
+
       const energyEvent = new CustomEvent('farm-action-energy', {
         detail: { cost: energyCost, action: 'farming' },
         cancelable: true,
@@ -183,29 +235,6 @@ export class FarmPlot extends Phaser.GameObjects.Container {
         } else if (tool.endsWith('-seed')) {
           this.shake()
           this.showFloatingText('⛏️ Cần cuốc đất trước khi gieo!', '#ffd166')
-        } else {
-          this.shake()
-        }
-        break
-
-      case 'tilled':
-        if (tool.endsWith('-seed')) {
-          const cropId = tool.replace('-seed', '') as CropId
-          const plantEvent = new CustomEvent('farm-plant-crop', {
-            detail: { seedId: tool, cropId },
-            cancelable: true,
-          })
-          window.dispatchEvent(plantEvent)
-
-          if (!plantEvent.defaultPrevented) {
-            this.plant(cropId)
-          } else {
-            this.shake()
-            this.showFloatingText('Hết hạt giống!', '#ff6b6b')
-          }
-        } else if (tool === 'hoe' || tool === 'gold-hoe') {
-          this.animateBounce()
-          this.showFloatingText('Đất đã được cày xới!')
         } else {
           this.shake()
         }

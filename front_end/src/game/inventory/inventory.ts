@@ -208,33 +208,13 @@ export const EDIBLE_ITEMS: Record<string, { energy: number; label: string }> = {
 }
 
 /*
- * Inventory mặc định ban đầu
+ * Inventory mặc định ban đầu: 20 ô trống hoàn toàn (người chơi phải trồng hoặc mua để có thêm)
  */
-export const DEFAULT_INVENTORY: InventorySlot[] = [
-  null,
-  null,
-  null,
-  { ...ITEM_DEFINITIONS['corn-seed'], quantity: 5 },
-  { ...ITEM_DEFINITIONS['rice-seed'], quantity: 5 },
-  { ...ITEM_DEFINITIONS['strawberry-seed'], quantity: 5 },
-  { ...ITEM_DEFINITIONS['pumpkin-seed'], quantity: 5 },
-  { ...ITEM_DEFINITIONS['watermelon-seed'], quantity: 5 },
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-]
+export const DEFAULT_INVENTORY: InventorySlot[] = Array(INVENTORY_SIZE).fill(null)
 
 /*
  * Toolbar mặc định 8 slot (phím tắt 1 - 8)
+ * Chỉ cấp 4 công cụ cơ bản + 5 Hạt Bắp khởi nghiệp
  */
 export const DEFAULT_TOOLBAR: (InventoryItem | null)[] = [
   { ...ITEM_DEFINITIONS['watering-can'], quantity: 1 },
@@ -242,9 +222,9 @@ export const DEFAULT_TOOLBAR: (InventoryItem | null)[] = [
   { ...ITEM_DEFINITIONS['hoe'], quantity: 1 },
   { ...ITEM_DEFINITIONS['fishing-rod'], quantity: 1 },
   { ...ITEM_DEFINITIONS['corn-seed'], quantity: 5 },
-  { ...ITEM_DEFINITIONS['rice-seed'], quantity: 5 },
-  { ...ITEM_DEFINITIONS['strawberry-seed'], quantity: 5 },
-  { ...ITEM_DEFINITIONS['pumpkin-seed'], quantity: 5 },
+  null,
+  null,
+  null,
 ]
 
 const STORAGE_KEY_PREFIX = 'pixel-farm-inventory-v3'
@@ -255,8 +235,8 @@ type SavedInventory = {
 }
 
 export function getStorageKey(account?: string | null): string {
-  if (account && account.startsWith('0x')) {
-    return `${STORAGE_KEY_PREFIX}-${account.toLowerCase()}`
+  if (account && typeof account === 'string' && account.trim().length > 0) {
+    return `${STORAGE_KEY_PREFIX}-${account.trim().toLowerCase()}`
   }
   return `${STORAGE_KEY_PREFIX}-guest`
 }

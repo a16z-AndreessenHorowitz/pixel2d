@@ -198,18 +198,31 @@ export function GamePage() {
                   .filter((id: any) => typeof id === 'number')
                 if (ids.length > 0) setCompletedQuestIds(ids)
               }
+              // Đồng bộ Kho đồ và Toolbar từ cơ sở dữ liệu MongoDB
+              if (Array.isArray(data.state.toolbar) && data.state.toolbar.length > 0) {
+                setToolbar(data.state.toolbar)
+              }
+              if (Array.isArray(data.state.inventory) && data.state.inventory.length > 0) {
+                setInventory(data.state.inventory)
+              }
             }
           })
           .catch(() => {})
       }
     }
 
+    const handleOpenShopEvent = () => setShopOpen(true)
+
     fetchLatestState()
     window.addEventListener('sync-game-state', fetchLatestState)
-    return () => window.removeEventListener('sync-game-state', fetchLatestState)
-  }, [effectiveAddress, currentUser?.token])
+    window.addEventListener('open-shop-modal', handleOpenShopEvent)
+    return () => {
+      window.removeEventListener('sync-game-state', fetchLatestState)
+      window.removeEventListener('open-shop-modal', handleOpenShopEvent)
+    }
+  }, [effectiveAddress, currentUser?.token, setToolbar, setInventory])
 
-  // Tự động lưu Game State (coins, energy, level, xp) lên Backend khi có thay đổi
+  // Tự động lưu Game State (coins, energy, level, xp, toolbar, inventory) lên Backend khi có thay đổi
   useEffect(() => {
     if (!effectiveAddress) return
     const timer = setTimeout(() => {
@@ -227,11 +240,13 @@ export function GamePage() {
           max_energy: maxEnergy,
           level,
           xp,
+          toolbar,
+          inventory,
         }),
       }).catch(() => {})
     }, 1000)
     return () => clearTimeout(timer)
-  }, [effectiveAddress, coins, energy, maxEnergy, level, xp, currentUser?.token])
+  }, [effectiveAddress, coins, energy, maxEnergy, level, xp, toolbar, inventory, currentUser?.token])
 
   // Xử lý ăn vật phẩm từ Tool được chọn
   const handleEatSelectedTool = () => {
@@ -299,18 +314,85 @@ export function GamePage() {
     setTimeout(() => setLevelUpMessage(null), 3500)
   }
 
-  // Mua hạt giống từ Shop
-  const handleBuyShopItem = (item: ShopItem) => {
-    if (coins < item.priceCoins) return
-    setCoins((prev) => prev - item.priceCoins)
-    soundEngine.playCoin()
+  // Mua hạt giống từ Shop (gọi API backend khi đã đăng nhập, fallback guest)
+  const handleBuyShopItem = async (item: ShopItem) => {
+    if (coins < item.priceCoins) {
+      showGameAlert({
+        title: 'Thiếu Coin',
+        message: `Bạn không đủ Coin để mua gói ${item.name}! Cần ${item.priceCoins} Coins nhưng hiện có ${coins} Coins. Hãy thu hoạch nông sản hoặc câu cá để kiếm thêm Coin!`,
+        type: 'warning',
+        icon: '🪙',
+      })
+      return
+    }
+
+    const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
+    if (effectiveAddress && token) {
+      try {
+        const res = await fetch('http://localhost:4000/api/shop/buy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            address: effectiveAddress,
+            itemId: item.id,
+            bundleCount: 1,
+          }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          soundEngine.playCoin()
+          if (typeof data.remainingCoins === 'number') setCoins(data.remainingCoins)
+          if (Array.isArray(data.toolbar)) setToolbar(data.toolbar)
+          if (Array.isArray(data.inventory)) setInventory(data.inventory)
+          showGameAlert({
+            title: 'Mua Thành Công',
+            message: `Bạn đã mua thành công ${item.bundleQuantity}x ${item.name}! Hãy chọn hạt giống trên thanh công cụ để gieo trồng.`,
+            type: 'success',
+            icon: '🌱',
+          })
+          return
+        } else {
+          showGameAlert({
+            title: 'Không Thể Mua',
+            message: data.error || 'Kho đồ đã đầy hoặc có lỗi xảy ra.',
+            type: 'warning',
+            icon: '🎒',
+          })
+          return
+        }
+      } catch (err) {
+        console.error('Buy shop item error:', err)
+      }
+    }
+
+    // Khách vãng lai (Guest) hoặc khi offline
     const def = ITEM_DEFINITIONS[item.id]
     if (def) {
-      addItem({ ...def, quantity: item.bundleQuantity })
+      const added = addItem({ ...def, quantity: item.bundleQuantity })
+      if (!added) {
+        showGameAlert({
+          title: 'Kho Đồ Đầy',
+          message: 'Túi đồ của bạn đã đầy! Vui lòng dọn dẹp hoặc bán bớt nông sản trước khi mua.',
+          type: 'warning',
+          icon: '🎒',
+        })
+        return
+      }
+      setCoins((prev) => prev - item.priceCoins)
+      soundEngine.playCoin()
+      showGameAlert({
+        title: 'Mua Thành Công',
+        message: `Bạn đã mua thành công ${item.bundleQuantity}x ${item.name}!`,
+        type: 'success',
+        icon: '🌱',
+      })
     }
   }
 
-  // Bán nông sản lấy Coins
+  // Bán nông sản lấy Coins (tính toán đồng bộ tránh trừ x2)
   const handleSellItem = (itemId: string, quantity: number, pricePerUnit: number) => {
     if (!currentUser && !account) {
       showGameAlert({
@@ -324,48 +406,44 @@ export function GamePage() {
       return
     }
 
-    let remainingToRemove = quantity
-    setToolbar((prev) => {
-      const next = [...prev]
-      for (let i = 0; i < next.length; i++) {
-        const slot = next[i]
-        if (slot && slot.id === itemId && remainingToRemove > 0) {
-          if (slot.quantity <= remainingToRemove) {
-            remainingToRemove -= slot.quantity
-            next[i] = null
-          } else {
-            next[i] = { ...slot, quantity: slot.quantity - remainingToRemove }
-            remainingToRemove = 0
-          }
+    // 1. Tính toán trừ số lượng đồng bộ giữa Toolbar và Inventory
+    let remaining = quantity
+    const nextToolbar = [...toolbar]
+    for (let i = 0; i < nextToolbar.length && remaining > 0; i++) {
+      const slot = nextToolbar[i]
+      if (slot && slot.id === itemId) {
+        if (slot.quantity <= remaining) {
+          remaining -= slot.quantity
+          nextToolbar[i] = null
+        } else {
+          nextToolbar[i] = { ...slot, quantity: slot.quantity - remaining }
+          remaining = 0
         }
       }
-      return next
-    })
-
-    if (remainingToRemove > 0) {
-      setInventory((prev) => {
-        const next = [...prev]
-        for (let i = 0; i < next.length; i++) {
-          const slot = next[i]
-          if (slot && slot.id === itemId && remainingToRemove > 0) {
-            if (slot.quantity <= remainingToRemove) {
-              remainingToRemove -= slot.quantity
-              next[i] = null
-            } else {
-              next[i] = { ...slot, quantity: slot.quantity - remainingToRemove }
-              remainingToRemove = 0
-            }
-          }
-        }
-        return next
-      })
     }
+
+    const nextInventory = [...inventory]
+    for (let i = 0; i < nextInventory.length && remaining > 0; i++) {
+      const slot = nextInventory[i]
+      if (slot && slot.id === itemId) {
+        if (slot.quantity <= remaining) {
+          remaining -= slot.quantity
+          nextInventory[i] = null
+        } else {
+          nextInventory[i] = { ...slot, quantity: slot.quantity - remaining }
+          remaining = 0
+        }
+      }
+    }
+
+    setToolbar(nextToolbar)
+    setInventory(nextInventory)
 
     const earned = pricePerUnit * quantity
     setCoins((prev) => prev + earned)
     soundEngine.playCoin()
 
-    const token = localStorage.getItem('pixel_farm_jwt')
+    const token = localStorage.getItem('pixel_farm_jwt') || currentUser?.token
     fetch('http://localhost:4000/api/shop/sell', {
       method: 'POST',
       headers: {
@@ -375,9 +453,18 @@ export function GamePage() {
       body: JSON.stringify({
         itemId,
         quantity,
-        address: account || undefined,
+        address: effectiveAddress,
       }),
-    }).catch(() => {})
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          if (typeof data.newCoinBalance === 'number') setCoins(data.newCoinBalance)
+          if (Array.isArray(data.toolbar)) setToolbar(data.toolbar)
+          if (Array.isArray(data.inventory)) setInventory(data.inventory)
+        }
+      })
+      .catch(() => {})
   }
 
   // Nhận thưởng Quest
@@ -768,6 +855,9 @@ export function GamePage() {
               onClick={() => {
                 if (tool) {
                   selectTool(tool.id)
+                } else {
+                  // Ô trống: click vào để mở nhanh Tiệm Tạp Hóa mua hạt giống/công cụ
+                  setShopOpen(true)
                 }
               }}
               draggable={!!tool}

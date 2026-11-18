@@ -64,9 +64,9 @@ export function useInventoryManager({
     )
   }, [])
 
-  // Thêm vật phẩm vào túi đồ (Hỗ trợ cộng dồn stackable)
+  // Thêm vật phẩm vào túi đồ (Hỗ trợ cộng dồn stackable), trả về boolean báo thành công/thất bại
   const addItem = useCallback(
-    (item: InventoryItem) => {
+    (item: InventoryItem): boolean => {
       if (item.stackable) {
         // 1. Cố gắng gộp stack vào Toolbar trước
         const tbIdx = toolbar.findIndex((t) => t && t.id === item.id)
@@ -79,7 +79,7 @@ export function useInventoryManager({
             }
             return next
           })
-          return
+          return true
         }
 
         // 2. Cố gắng gộp stack vào Inventory
@@ -93,7 +93,7 @@ export function useInventoryManager({
             }
             return next
           })
-          return
+          return true
         }
       }
 
@@ -105,7 +105,7 @@ export function useInventoryManager({
           next[emptyTbIdx] = item
           return next
         })
-        return
+        return true
       }
 
       // 4. Tìm ô trống trong Inventory
@@ -116,7 +116,11 @@ export function useInventoryManager({
           next[emptyInvIdx] = item
           return next
         })
+        return true
       }
+
+      // Kho đồ và Toolbar đều đã đầy!
+      return false
     },
     [toolbar, inventory],
   )
@@ -127,17 +131,34 @@ export function useInventoryManager({
       // 1. Kiểm tra trên Toolbar
       const tbIdx = toolbar.findIndex((t) => t && t.id === seedId && t.quantity > 0)
       if (tbIdx !== -1 && toolbar[tbIdx]) {
+        const current = toolbar[tbIdx]!
+        const willBeEmpty = current.quantity <= 1
+
         setToolbar((prev) => {
           const next = [...prev]
-          const current = next[tbIdx]!
-          if (current.quantity > 1) {
-            next[tbIdx] = { ...current, quantity: current.quantity - 1 }
-          } else {
-            next[tbIdx] = null
-            selectTool('watering-can')
+          if (next[tbIdx]) {
+            if (next[tbIdx]!.quantity > 1) {
+              next[tbIdx] = { ...next[tbIdx]!, quantity: next[tbIdx]!.quantity - 1 }
+            } else {
+              next[tbIdx] = null
+            }
           }
           return next
         })
+
+        if (willBeEmpty) {
+          // Kiểm tra xem toolbar còn loại hạt giống nào khác không
+          const otherSeed = toolbar.find(
+            (t, idx) => idx !== tbIdx && t && t.id.endsWith('-seed') && t.quantity > 0,
+          )
+          if (otherSeed) {
+            selectTool(otherSeed.id)
+          } else {
+            // Nếu hết hạt giống, ưu tiên chuyển về bình tưới
+            const wateringCan = toolbar.find((t) => t && t.id.includes('watering-can'))
+            selectTool(wateringCan ? wateringCan.id : 'watering-can')
+          }
+        }
         return true
       }
 
