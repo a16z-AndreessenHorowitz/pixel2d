@@ -1,7 +1,8 @@
 export const player = {
-  name: 'Huy Harvest',
-  coins: 1280,
-  level: 7,
-  energy: 42,
-  farmName: 'Sunny Plot',
+  name: 'Nông Dân Web3',
+  coins: 100,
+  level: 1,
+  energy: 100,
+  farmName: 'Pixel Plot',
 }
+

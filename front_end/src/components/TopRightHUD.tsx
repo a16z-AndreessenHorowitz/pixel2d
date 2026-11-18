@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { soundEngine } from '../audio/SoundEngine'
 import type { AuthUser } from './AuthModal'
-import { QuestPanel } from './QuestPanel'
+import { QuestPanel, type QuestProgress } from './QuestPanel'
 import type { Quest } from '../mock-data/quests'
 import './TopRightHUD.css'
 
@@ -32,6 +32,8 @@ export interface TopRightHUDProps {
   quests?: Quest[]
   /** ID các nhiệm vụ đã hoàn thành */
   completedQuestIds?: number[]
+  /** Tiến độ nhiệm vụ */
+  questProgress?: QuestProgress
   /** Nhận thưởng hoàn thành nhiệm vụ */
   onClaimQuest?: (questId: number, rewardCoins: number) => void
 }
@@ -49,6 +51,7 @@ export function TopRightHUD({
   onClaimFaucet: _onClaimFaucet,
   quests,
   completedQuestIds = [],
+  questProgress,
   onClaimQuest,
 }: TopRightHUDProps) {
   const [sfxEnabled, setSfxEnabled] = useState(() => soundEngine.getSfxEnabled())
@@ -164,6 +167,7 @@ export function TopRightHUD({
         <QuestPanel
           quests={quests}
           completedIds={completedQuestIds}
+          progress={questProgress}
           isLoggedIn={Boolean(currentUser || account)}
           onOpenAuth={onOpenAuth}
           onClaimReward={onClaimQuest}

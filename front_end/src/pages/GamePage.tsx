@@ -3,6 +3,7 @@ import { GameCanvas } from '../components/GameCanvas'
 import { TopLeftHUD } from '../components/TopLeftHUD'
 import { ShopModal, type ShopItem } from '../components/ShopModal'
 import { TopRightHUD } from '../components/TopRightHUD'
+import type { QuestProgress } from '../components/QuestPanel'
 import { ClaimTokenModal } from '../components/ClaimTokenModal'
 import { AuthModal, type AuthUser } from '../components/AuthModal'
 import { DialogueModal } from '../components/DialogueModal'
@@ -104,7 +105,26 @@ export function GamePage() {
   const [quizModalOpen, setQuizModalOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [faucetLoading, setFaucetLoading] = useState(false)
-  const [completedQuestIds, setCompletedQuestIds] = useState<number[]>([1])
+  const [completedQuestIds, setCompletedQuestIds] = useState<number[]>([])
+
+  const [questProgress, setQuestProgress] = useState<QuestProgress>(() => {
+    try {
+      const rawUser = localStorage.getItem('pixel_farm_user')
+      const u = rawUser ? JSON.parse(rawUser) : null
+      const addr = u?.wallet_address || u?.address
+      const storageKey = addr ? `pixel_farm_qp_${addr.toLowerCase()}` : 'pixel_farm_qp_guest'
+      const raw = localStorage.getItem(storageKey)
+      if (raw) return JSON.parse(raw)
+    } catch {}
+    return {
+      planted: 0,
+      harvested: 0,
+      visitedExchange: false,
+      boughtShop: 0,
+      fishCaught: 0,
+      coins: player.coins,
+    }
+  })
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     try {
@@ -253,7 +273,9 @@ export function GamePage() {
                 const ids = data.state.quests
                   .map((q: any) => (typeof q === 'number' ? q : q?.id))
                   .filter((id: any) => typeof id === 'number')
-                if (ids.length > 0) setCompletedQuestIds(ids)
+                setCompletedQuestIds(ids)
+              } else {
+                setCompletedQuestIds([])
               }
               // Đồng bộ Kho đồ và Toolbar từ cơ sở dữ liệu MongoDB
               if (Array.isArray(data.state.toolbar) && data.state.toolbar.length > 0) {
@@ -278,6 +300,56 @@ export function GamePage() {
       window.removeEventListener('open-shop-modal', handleOpenShopEvent)
     }
   }, [effectiveAddress, currentUser?.token, setToolbar, setInventory])
+
+  // Tải tiến độ nhiệm vụ theo địa chỉ người dùng
+  useEffect(() => {
+    const storageKey = effectiveAddress ? `pixel_farm_qp_${effectiveAddress.toLowerCase()}` : 'pixel_farm_qp_guest'
+    try {
+      const raw = localStorage.getItem(storageKey)
+      if (raw) {
+        setQuestProgress(JSON.parse(raw))
+        return
+      }
+    } catch {}
+    setQuestProgress({
+      planted: 0,
+      harvested: 0,
+      visitedExchange: false,
+      boughtShop: 0,
+      fishCaught: 0,
+      coins,
+    })
+  }, [effectiveAddress])
+
+  // Lưu tiến độ nhiệm vụ vào LocalStorage
+  useEffect(() => {
+    const storageKey = effectiveAddress ? `pixel_farm_qp_${effectiveAddress.toLowerCase()}` : 'pixel_farm_qp_guest'
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ ...questProgress, coins }))
+    } catch {}
+  }, [questProgress, coins, effectiveAddress])
+
+  // Lắng nghe các sự kiện gameplay để cập nhật tiến độ nhiệm vụ tự động
+  useEffect(() => {
+    const handleCropPlanted = () => {
+      setQuestProgress((prev) => ({ ...prev, planted: prev.planted + 1 }))
+    }
+    const handleFarmHarvest = () => {
+      setQuestProgress((prev) => ({ ...prev, harvested: prev.harvested + 1 }))
+    }
+    const handleFishCatch = () => {
+      setQuestProgress((prev) => ({ ...prev, fishCaught: prev.fishCaught + 1 }))
+    }
+
+    window.addEventListener('farm-plant-crop-success', handleCropPlanted)
+    window.addEventListener('farm-harvest', handleFarmHarvest)
+    window.addEventListener('fishing-catch', handleFishCatch)
+    return () => {
+      window.removeEventListener('farm-plant-crop-success', handleCropPlanted)
+      window.removeEventListener('farm-harvest', handleFarmHarvest)
+      window.removeEventListener('fishing-catch', handleFishCatch)
+    }
+  }, [])
 
   // Tự động lưu Game State (coins, energy, level, xp, toolbar, inventory) lên Backend khi có thay đổi
   useEffect(() => {
@@ -401,6 +473,7 @@ export function GamePage() {
         const data = await res.json()
         if (data.success) {
           soundEngine.playCoin()
+          setQuestProgress((prev) => ({ ...prev, boughtShop: prev.boughtShop + 1 }))
           if (typeof data.remainingCoins === 'number') setCoins(data.remainingCoins)
           if (Array.isArray(data.toolbar)) setToolbar(normalizeSlots(data.toolbar))
           if (Array.isArray(data.inventory)) setInventory(normalizeSlots(data.inventory))
@@ -439,6 +512,7 @@ export function GamePage() {
         return
       }
       setCoins((prev) => prev - item.priceCoins)
+      setQuestProgress((prev) => ({ ...prev, boughtShop: prev.boughtShop + 1 }))
       soundEngine.playCoin()
       showGameAlert({
         title: 'Mua Thành Công',
@@ -562,7 +636,7 @@ export function GamePage() {
       }).then((r) => r.json())
 
       if (res.success && res.data) {
-        setCoins(res.data.newCoins)
+        setCoins((prev) => prev + rewardCoins)
         if (Array.isArray(res.data.completedQuestIds)) {
           setCompletedQuestIds(res.data.completedQuestIds)
         } else {
@@ -627,8 +701,8 @@ export function GamePage() {
     refreshBalances()
   }
 
-  const handleQuizReward = (rewardCoins: number, rewardXp: number, newTotalCoins: number) => {
-    setCoins(newTotalCoins)
+  const handleQuizReward = (rewardCoins: number, rewardXp: number, _newTotalCoins: number) => {
+    setCoins((prev) => prev + rewardCoins)
     addXP(rewardXp)
     showGameAlert({
       title: 'Lớp Học Blockchain',
@@ -648,12 +722,26 @@ export function GamePage() {
           detail: { user, token },
         }),
       )
+      window.dispatchEvent(new CustomEvent('sync-game-state'))
     } catch {}
   }, [])
 
   const handleLogout = useCallback(() => {
     setCurrentUser(null)
     disconnect()
+    setCompletedQuestIds([])
+    setCoins(100)
+    setLevel(1)
+    setXp(0)
+    setEnergy(100)
+    setQuestProgress({
+      planted: 0,
+      harvested: 0,
+      visitedExchange: false,
+      boughtShop: 0,
+      fishCaught: 0,
+      coins: 100,
+    })
     try {
       localStorage.removeItem('pixel_farm_user')
       localStorage.removeItem('pixel_farm_jwt')
@@ -686,9 +774,15 @@ export function GamePage() {
         maxEnergy={maxEnergy}
         level={level}
         xp={xp}
-        onOpenGameFiHub={() => setGameFiHubOpen(true)}
+        onOpenGameFiHub={() => {
+          setGameFiHubOpen(true)
+          setQuestProgress((prev) => ({ ...prev, visitedExchange: true }))
+        }}
         onOpenNftShop={() => setGameFiHubOpen(true)}
-        onOpenClaim={() => setClaimModalOpen(true)}
+        onOpenClaim={() => {
+          setClaimModalOpen(true)
+          setQuestProgress((prev) => ({ ...prev, visitedExchange: true }))
+        }}
         onOpenShop={() => setShopOpen(true)}
         onOpenQuiz={() => setQuizModalOpen(true)}
         isQuizOpen={quizModalOpen}
@@ -708,6 +802,7 @@ export function GamePage() {
         onClaimFaucet={handleClaimFaucet}
         quests={quests}
         completedQuestIds={completedQuestIds}
+        questProgress={questProgress}
         onClaimQuest={handleClaimQuest}
       />
 

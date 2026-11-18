@@ -17,8 +17,8 @@ export interface QuestDefinition {
 export const QUEST_CATALOG: QuestDefinition[] = [
   {
     id: 1,
-    title: 'Gieo 5 luống cà rốt',
-    description: 'Hoàn tất một lượt trồng cơ bản trên khu đất đầu tiên.',
+    title: 'Gieo 5 luống cây trồng',
+    description: 'Hoàn tất gieo 5 hạt giống bất kỳ trên khu đất nông trại.',
     rewardCoins: 80,
     rewardXp: 50,
     category: 'farming',
@@ -26,23 +26,23 @@ export const QUEST_CATALOG: QuestDefinition[] = [
   {
     id: 2,
     title: 'Thu hoạch mùa sáng',
-    description: 'Thu gom nông sản đã chín và chuẩn bị kho cho lượt tiếp theo.',
+    description: 'Thu gom ít nhất 1 nông sản đã chín để chuẩn bị cho mùa vụ tiếp theo.',
     rewardCoins: 120,
     rewardXp: 80,
     category: 'harvest',
   },
   {
     id: 3,
-    title: 'Ghé thăm bảng đổi thưởng GameFi',
-    description: 'Kiểm tra tỷ giá quy đổi 1,000 Coins lấy 10 $PIXEL on-chain.',
+    title: 'Ghé thăm bảng đổi thưởng',
+    description: 'Kiểm tra tỷ giá quy đổi 1,000 Coins = 10 $PIXEL on-chain.',
     rewardCoins: 50,
     rewardXp: 30,
     category: 'explore',
   },
   {
     id: 4,
-    title: 'Nâng cấp kho nhỏ',
-    description: 'Mở thêm chỗ chứa nông sản để nhận nhiều nhiệm vụ hơn.',
+    title: 'Mua sắm tại Tiệm Tạp Hóa',
+    description: 'Mua ít nhất 1 gói hạt giống từ Tiệm Tạp Hóa của cô Hazel.',
     rewardCoins: 180,
     rewardXp: 100,
     category: 'upgrade',
@@ -50,7 +50,7 @@ export const QUEST_CATALOG: QuestDefinition[] = [
   {
     id: 5,
     title: 'Thử thách nông dân chăm chỉ',
-    description: 'Cày cuốc tích lũy và hoàn thành mùa vụ lớn để nhận 1,000 Coin đổi token $PIXEL.',
+    description: 'Câu được ít nhất 1 con cá hoặc tích lũy đạt mốc 500 Coins.',
     rewardCoins: 1000,
     rewardXp: 500,
     category: 'special',

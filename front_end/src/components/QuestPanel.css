@@ -477,6 +477,56 @@
   background: rgba(220, 53, 69, 0.55);
 }
 
+.quest-claim-btn--ready {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border-color: #86efac;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.45);
+  animation: ready-pulse 2s infinite ease-in-out;
+}
+
+@keyframes ready-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.7);
+  }
+}
+
+.quest-claim-btn--ready:hover {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.quest-claim-btn--in-progress {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.quest-claim-btn--in-progress:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.quest-progress-track {
+  margin-top: 4px;
+}
+
+.quest-progress-track small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #93c5fd;
+  background: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 .quest-status-badge {
   font-size: 0.75rem;
   font-weight: 700;

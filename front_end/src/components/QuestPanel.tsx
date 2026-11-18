@@ -3,9 +3,19 @@ import type { Quest } from '../mock-data/quests'
 import { showGameAlert } from './NotificationModal'
 import './QuestPanel.css'
 
+export interface QuestProgress {
+  planted: number
+  harvested: number
+  visitedExchange: boolean
+  boughtShop: number
+  fishCaught: number
+  coins: number
+}
+
 interface QuestPanelProps {
   quests: Quest[]
   completedIds?: number[]
+  progress?: QuestProgress
   isLoggedIn?: boolean
   onOpenAuth?: () => void
   onClaimReward?: (questId: number, rewardCoins: number) => void
@@ -14,6 +24,7 @@ interface QuestPanelProps {
 export function QuestPanel({
   quests,
   completedIds = [],
+  progress,
   isLoggedIn = false,
   onOpenAuth,
   onClaimReward,
@@ -22,8 +33,47 @@ export function QuestPanel({
   const total = quests.length
   const done = completedIds.length
 
+  const getQuestStatus = (q: Quest) => {
+    const isClaimed = completedIds.includes(q.id)
+    if (isClaimed) return { isClaimed: true, isReady: false, current: q.target, target: q.target }
+
+    let current = 0
+    let isReady = false
+
+    if (progress) {
+      switch (q.actionType) {
+        case 'plant':
+          current = progress.planted
+          isReady = progress.planted >= q.target
+          break
+        case 'harvest':
+          current = progress.harvested
+          isReady = progress.harvested >= q.target
+          break
+        case 'exchange':
+          current = progress.visitedExchange ? 1 : 0
+          isReady = progress.visitedExchange
+          break
+        case 'shop':
+          current = progress.boughtShop
+          isReady = progress.boughtShop >= q.target
+          break
+        case 'rich':
+          current = progress.fishCaught >= 1 || progress.coins >= 500 ? 1 : 0
+          isReady = current >= 1
+          break
+        default:
+          isReady = false
+      }
+    }
+
+    return { isClaimed: false, isReady, current: Math.min(current, q.target), target: q.target }
+  }
+
   const handleClaim = (quest: Quest) => {
-    if (completedIds.includes(quest.id)) {
+    const status = getQuestStatus(quest)
+
+    if (status.isClaimed) {
       showGameAlert({
         title: 'Nhiệm Vụ Đã Nhận',
         message: 'Bạn đã hoàn tất và nhận thưởng cho nhiệm vụ này rồi!',
@@ -32,10 +82,11 @@ export function QuestPanel({
       })
       return
     }
+
     if (!isLoggedIn) {
       showGameAlert({
         title: 'Yêu Cầu Đăng Nhập',
-        message: 'Vui lòng đăng nhập hoặc kết nối ví để nhận thưởng Coin từ nhiệm vụ này!',
+        message: 'Vui lòng đăng nhập hoặc kết nối ví để hoàn thành và nhận thưởng Coin!',
         type: 'warning',
         icon: '🔒',
         confirmText: 'Đăng nhập ngay',
@@ -43,6 +94,18 @@ export function QuestPanel({
       })
       return
     }
+
+    if (!status.isReady) {
+      showGameAlert({
+        title: `Chưa Hoàn Thành: ${quest.title}`,
+        message: `${quest.hint}\n\nTiến độ hiện tại: ${status.current}/${status.target}. Hãy hoàn thành nhiệm vụ trước khi nhận thưởng nhé!`,
+        type: 'info',
+        icon: '⏳',
+        confirmText: 'Tôi hiểu rồi',
+      })
+      return
+    }
+
     onClaimReward?.(quest.id, quest.rewardCoins)
   }
 
@@ -119,20 +182,25 @@ export function QuestPanel({
 
             <div className="quest-list">
               {quests.map((q) => {
-                const isCompleted = completedIds.includes(q.id)
+                const status = getQuestStatus(q)
                 return (
                   <div
                     key={q.id}
-                    className={`quest-card ${isCompleted ? 'quest-card--done' : ''}`}
+                    className={`quest-card ${status.isClaimed ? 'quest-card--done' : ''}`}
                   >
-                    <div className="quest-card__badge">{isCompleted ? '✓' : q.id}</div>
+                    <div className="quest-card__badge">{status.isClaimed ? '✓' : q.id}</div>
                     <div className="quest-card__info">
                       <h4>{q.title}</h4>
                       <p>{q.description}</p>
+                      {!status.isClaimed && (
+                        <div className="quest-progress-track">
+                          <small>Tiến độ: {status.current}/{status.target}</small>
+                        </div>
+                      )}
                     </div>
                     <div className="quest-card__action">
                       <span className="quest-card__reward">+{q.rewardCoins} 🪙</span>
-                      {isCompleted ? (
+                      {status.isClaimed ? (
                         <span className="quest-status-badge">Đã nhận</span>
                       ) : !isLoggedIn ? (
                         <button
@@ -142,13 +210,22 @@ export function QuestPanel({
                         >
                           🔒 Đăng nhập
                         </button>
+                      ) : status.isReady ? (
+                        <button
+                          type="button"
+                          className="quest-claim-btn quest-claim-btn--ready"
+                          onClick={() => handleClaim(q)}
+                        >
+                          🎁 Nhận thưởng
+                        </button>
                       ) : (
                         <button
                           type="button"
-                          className="quest-claim-btn"
+                          className="quest-claim-btn quest-claim-btn--in-progress"
                           onClick={() => handleClaim(q)}
+                          title={q.hint}
                         >
-                          Nhận thưởng
+                          ⏳ {status.current}/{status.target}
                         </button>
                       )}
                     </div>

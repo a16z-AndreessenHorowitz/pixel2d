@@ -179,6 +179,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
           window.dispatchEvent(energyEvent)
 
           this.plant(cropId)
+          window.dispatchEvent(new CustomEvent('farm-plant-crop-success', { detail: { cropId } }))
         } else {
           // Hết hạt giống: Không trừ năng lượng, thông báo và điều hướng mở Cửa hàng
           this.shake()

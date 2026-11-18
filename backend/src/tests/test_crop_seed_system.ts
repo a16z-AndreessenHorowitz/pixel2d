@@ -49,17 +49,19 @@ async function runTests() {
     console.log('\n--- 2. KIỂM THỬ TIÊU HAO HẠT GIỐNG KHI GIEO TRỒNG ---')
     let currentToolbar = [...initialDoc.toolbar]
     const seedSlotIdx = currentToolbar.findIndex((t: any) => t && t.id === 'corn-seed')
-    if (seedSlotIdx !== -1) {
-      currentToolbar[seedSlotIdx].quantity -= 1
+    if (seedSlotIdx !== -1 && currentToolbar[seedSlotIdx]) {
+      currentToolbar[seedSlotIdx]!.quantity -= 1
     }
     initialDoc.toolbar = currentToolbar
     await initialDoc.save()
 
-    console.log(`✅ [PASS] - Tiêu hao 1 hạt bắp thành công: Số lượng còn lại = ${initialDoc.toolbar[seedSlotIdx].quantity}`)
+    console.log(`✅ [PASS] - Tiêu hao 1 hạt bắp thành công: Số lượng còn lại = ${initialDoc.toolbar[seedSlotIdx]?.quantity}`)
 
     // Gieo nốt 4 hạt còn lại để hết hạt giống
-    currentToolbar[seedSlotIdx].quantity = 0
-    currentToolbar[seedSlotIdx] = null
+    if (seedSlotIdx !== -1 && currentToolbar[seedSlotIdx]) {
+      currentToolbar[seedSlotIdx]!.quantity = 0
+      currentToolbar[seedSlotIdx] = null
+    }
     initialDoc.toolbar = currentToolbar
     await initialDoc.save()
 
