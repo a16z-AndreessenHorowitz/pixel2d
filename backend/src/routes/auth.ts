@@ -1,9 +1,12 @@
 import { Router, Response } from 'express'
+import jwt from 'jsonwebtoken'
+import { CONFIG } from '../config/index.js'
 import { createSiweNonce, authenticateWalletLogin } from '../services/siweAuthService.js'
 import {
   registerTraditionalUser,
   loginTraditionalUser,
   getUserProfile,
+  linkWalletToUser,
 } from '../services/userAuthService.js'
 import { requireAuth } from '../middleware/auth.js'
 import type { AuthenticatedRequest } from '../types/index.js'
@@ -95,6 +98,39 @@ authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Respon
   try {
     const user = await getUserProfile(address)
     res.json({ success: true, user })
+  } catch (err: any) {
+    const status = err.status || 500
+    res.status(status).json({ success: false, error: err.message })
+  }
+})
+
+// 6. POST Link MetaMask Wallet to currently logged in User
+authRouter.post('/link-wallet', async (req, res) => {
+  const { address, signature, message, username, userId } = req.body
+  if (!address || !signature || !message) {
+    return res.status(400).json({ success: false, error: 'Thiếu address, signature hoặc message' })
+  }
+
+  let identifier = username || userId
+  const authHeader = req.headers.authorization
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const decoded: any = jwt.verify(authHeader.split(' ')[1], CONFIG.JWT_SECRET)
+      if (decoded?.username) identifier = decoded.username
+    } catch {}
+  }
+
+  if (!identifier) {
+    return res.status(400).json({ success: false, error: 'Thiếu thông tin người dùng cần liên kết ví' })
+  }
+
+  try {
+    const result = await linkWalletToUser(identifier, address, signature, message)
+    res.json({
+      success: true,
+      message: 'Liên kết ví MetaMask thành công!',
+      ...result,
+    })
   } catch (err: any) {
     const status = err.status || 500
     res.status(status).json({ success: false, error: err.message })

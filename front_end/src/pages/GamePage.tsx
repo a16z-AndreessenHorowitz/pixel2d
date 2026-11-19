@@ -8,13 +8,13 @@ import { ClaimTokenModal } from '../components/ClaimTokenModal'
 import { AuthModal, type AuthUser } from '../components/AuthModal'
 import { DialogueModal } from '../components/DialogueModal'
 import { GameFiHubModal } from '../components/GameFiHubModal'
+import { NftShopModal, type NftShopItem } from '../components/NftShopModal'
 import { QuizModal } from '../components/QuizModal'
 import { NotificationModal, showGameAlert } from '../components/NotificationModal'
 import { VirtualDpad } from '../components/VirtualDpad'
 import type { DialogueStep } from '../data/dialogues'
 import { soundEngine } from '../audio/SoundEngine'
 import { useWeb3 } from '../web3/useWeb3'
-import { player } from '../mock-data/player'
 import {
   EDIBLE_ITEMS,
   INVENTORY_SIZE,
@@ -99,6 +99,7 @@ export function GamePage() {
   const [dialogueOpen, setDialogueOpen] = useState(false)
   const [activeNpcId, setActiveNpcId] = useState('barney')
   const [gameFiHubOpen, setGameFiHubOpen] = useState(false)
+  const [nftShopOpen, setNftShopOpen] = useState(false)
   const [inventoryOpen, setInventoryOpen] = useState(false)
   const [shopOpen, setShopOpen] = useState(false)
   const [claimModalOpen, setClaimModalOpen] = useState(false)
@@ -143,6 +144,7 @@ export function GamePage() {
     connectWallet,
     disconnect,
     claimFaucet,
+    depositTokens,
     claimFarmingReward,
     refreshBalances,
     error: web3Error,
@@ -749,6 +751,33 @@ export function GamePage() {
     } catch {}
   }, [])
 
+  const handleOpenFarm = useCallback(() => {
+    setShopOpen(false)
+    setGameFiHubOpen(false)
+    setNftShopOpen(false)
+    setQuizModalOpen(false)
+    setClaimModalOpen(false)
+    setInventoryOpen(false)
+    window.dispatchEvent(new CustomEvent('focus-player'))
+  }, [])
+
+  const handleBuyNftSuccess = useCallback((item: NftShopItem) => {
+    const def = ITEM_DEFINITIONS[item.gameToolId as keyof typeof ITEM_DEFINITIONS]
+    if (def) {
+      addItem({
+        ...def,
+        quantity: 1,
+      })
+    }
+    soundEngine.playLevelUp()
+    showGameAlert({
+      title: 'Mua NFT Thành Công!',
+      message: `🎉 Chúc mừng! Bạn đã nhận được ${item.name} (${item.buffTitle}) vào hành trang!`,
+      type: 'success',
+      icon: '🛡️',
+    })
+  }, [addItem])
+
   const handleLogout = useCallback(() => {
     setCurrentUser(null)
     disconnect()
@@ -797,11 +826,12 @@ export function GamePage() {
         maxEnergy={maxEnergy}
         level={level}
         xp={xp}
+        onOpenFarm={handleOpenFarm}
         onOpenGameFiHub={() => {
           setGameFiHubOpen(true)
           setQuestProgress((prev) => ({ ...prev, visitedExchange: true }))
         }}
-        onOpenNftShop={() => setGameFiHubOpen(true)}
+        onOpenNftShop={() => setNftShopOpen(true)}
         onOpenClaim={() => {
           setClaimModalOpen(true)
           setQuestProgress((prev) => ({ ...prev, visitedExchange: true }))
@@ -885,6 +915,18 @@ export function GamePage() {
         ethBalance={ethBalance}
         onOpenClaim={() => setClaimModalOpen(true)}
         onConnectWallet={connectWallet}
+      />
+
+      {/* NFT Shop Modal */}
+      <NftShopModal
+        isOpen={nftShopOpen}
+        onClose={() => setNftShopOpen(false)}
+        account={account}
+        pixelBalance={pixelBalance}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        depositTokens={depositTokens}
+        refreshBalances={refreshBalances}
+        onBuySuccess={handleBuyNftSuccess}
       />
 
       {/* Quiz Modal */}

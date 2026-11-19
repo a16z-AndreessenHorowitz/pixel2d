@@ -155,7 +155,44 @@ async function runTests() {
       console.log(`      - [${tx.type}] ${tx.amount}: ${tx.details}`)
     })
 
-    console.log('\n🎉 ALL 8 BACKEND API & SIGNER TESTS PASSED WITH MONGODB! 🍃🚀\n')
+    // 9. Test Traditional User Registration & Link Wallet
+    console.log('\n9️⃣ Testing Traditional Register & Link MetaMask Wallet...')
+    const testUsername = `testuser_${Date.now()}`
+    const regRes = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: testUsername, password: 'password123' }),
+    }).then((r) => r.json())
+    if (!regRes.success || !regRes.user) {
+      throw new Error('Register failed: ' + JSON.stringify(regRes))
+    }
+    const regToken = regRes.token
+
+    const linkWallet = Wallet.createRandom()
+    const linkAddress = linkWallet.address.toLowerCase()
+    const linkMsg = `Link wallet test: ${linkAddress}`
+    const linkSig = await linkWallet.signMessage(linkMsg)
+
+    const linkRes = await fetch(`${baseUrl}/api/auth/link-wallet`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${regToken}`,
+      },
+      body: JSON.stringify({
+        address: linkAddress,
+        signature: linkSig,
+        message: linkMsg,
+        username: testUsername,
+      }),
+    }).then((r) => r.json())
+
+    if (!linkRes.success || linkRes.user.username !== testUsername || linkRes.user.wallet_address !== linkAddress) {
+      throw new Error('Link wallet failed: ' + JSON.stringify(linkRes))
+    }
+    console.log(`   ✅ Link wallet success: preserved username "${linkRes.user.username}" with new wallet "${linkRes.user.wallet_address}"`)
+
+    console.log('\n🎉 ALL 9 BACKEND API, SIGNER & WALLET LINK TESTS PASSED WITH MONGODB! 🍃🚀\n')
   } finally {
     await disconnectDatabase()
     server.close(() => {

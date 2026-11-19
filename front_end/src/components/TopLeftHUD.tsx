@@ -64,7 +64,7 @@ export function TopLeftHUD({
   level = 1,
   xp = 0,
   onOpenFarm,
-  onOpenGameFiHub,
+  onOpenGameFiHub: _onOpenGameFiHub,
   onOpenNftShop,
   onOpenClaim,
   onOpenShop,
