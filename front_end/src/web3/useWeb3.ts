@@ -194,39 +194,97 @@ export function useWeb3() {
       const signer = await provider.getSigner()
       const signature = await signer.signMessage(message)
 
-      // 3. Gửi chữ ký lên Backend để đăng ký / đồng bộ User trong MongoDB Atlas
-      const authRes = await fetch('http://localhost:4000/api/auth/login-wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address: selectedAddress,
-          signature,
-          message,
-        }),
-      }).then((r) => r.json())
+      // 3. Kiểm tra xem người dùng đã đăng nhập tài khoản trước đó chưa
+      let existingUser: any = null
+      try {
+        const raw = localStorage.getItem('pixel_farm_user')
+        if (raw) existingUser = JSON.parse(raw)
+      } catch {}
 
-      if (!authRes.success) {
-        throw new Error(authRes.error || 'Xác thực chữ ký ví MetaMask thất bại')
+      let authUser: any = null
+      let authToken: string = ''
+
+      if (existingUser && (existingUser.username || existingUser.id)) {
+        // Người dùng đã có tài khoản -> Liên kết địa chỉ ví MetaMask vào tài khoản hiện tại
+        try {
+          const linkRes = await fetch('http://localhost:4000/api/auth/link-wallet', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(existingUser.token ? { Authorization: `Bearer ${existingUser.token}` } : {}),
+            },
+            body: JSON.stringify({
+              address: selectedAddress,
+              signature,
+              message,
+              username: existingUser.username,
+              userId: existingUser.id,
+            }),
+          }).then((r) => r.json())
+
+          if (linkRes.success && linkRes.user) {
+            authUser = {
+              id: existingUser.id,
+              username: existingUser.username,
+              wallet_address: selectedAddress,
+              address: selectedAddress,
+              token: linkRes.token || existingUser.token,
+            }
+            authToken = linkRes.token || existingUser.token
+          } else {
+            authUser = {
+              ...existingUser,
+              wallet_address: selectedAddress,
+              address: selectedAddress,
+            }
+            authToken = existingUser.token || ''
+          }
+        } catch {
+          authUser = {
+            ...existingUser,
+            wallet_address: selectedAddress,
+            address: selectedAddress,
+          }
+          authToken = existingUser.token || ''
+        }
+      } else {
+        // Chưa đăng nhập -> Xác thực đăng nhập ví SIWE thông thường
+        const authRes = await fetch('http://localhost:4000/api/auth/login-wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            address: selectedAddress,
+            signature,
+            message,
+          }),
+        }).then((r) => r.json())
+
+        if (!authRes.success) {
+          throw new Error(authRes.error || 'Xác thực chữ ký ví MetaMask thất bại')
+        }
+
+        authUser = {
+          id: authRes.user.id,
+          username: authRes.user.username,
+          wallet_address: selectedAddress,
+          address: selectedAddress,
+          token: authRes.token,
+        }
+        authToken = authRes.token
       }
 
       setAccount(selectedAddress)
-
-      const authUser = {
-        id: authRes.user.id,
-        username: authRes.user.username,
-        wallet_address: selectedAddress,
-        address: selectedAddress,
-        token: authRes.token,
-      }
 
       try {
         localStorage.setItem('pixel_wallet_address', selectedAddress)
         localStorage.removeItem('pixel_wallet_disconnected')
         localStorage.setItem('pixel_farm_user', JSON.stringify(authUser))
-        localStorage.setItem('pixel_farm_jwt', authRes.token)
+        if (authToken) {
+          localStorage.setItem('pixel_farm_jwt', authToken)
+        }
         window.dispatchEvent(
           new CustomEvent('auth-user-changed', {
-            detail: { user: authUser, token: authRes.token },
+            detail: { user: authUser, token: authToken },
           }),
         )
       } catch {
@@ -273,13 +331,20 @@ export function useWeb3() {
     try {
       localStorage.removeItem('pixel_wallet_address')
       localStorage.setItem('pixel_wallet_disconnected', 'true')
-      localStorage.removeItem('pixel_farm_user')
-      localStorage.removeItem('pixel_farm_jwt')
-      window.dispatchEvent(
-        new CustomEvent('auth-user-changed', {
-          detail: { user: null, token: null },
-        }),
-      )
+
+      const rawUser = localStorage.getItem('pixel_farm_user')
+      const user = rawUser ? JSON.parse(rawUser) : null
+      // Nếu user đăng nhập thuần bằng ví SIWE (username dạng Farmer_...) thì xóa phiên đăng nhập
+      // Nếu là tài khoản đăng ký truyền thống thì vẫn giữ phiên đăng nhập tài khoản
+      if (!user || user.username?.startsWith('Farmer_')) {
+        localStorage.removeItem('pixel_farm_user')
+        localStorage.removeItem('pixel_farm_jwt')
+        window.dispatchEvent(
+          new CustomEvent('auth-user-changed', {
+            detail: { user: null, token: null },
+          }),
+        )
+      }
     } catch {
       // ignore storage errors
     }

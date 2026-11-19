@@ -201,6 +201,26 @@ export class FarmScene extends Phaser.Scene {
     }
     window.addEventListener('toggle-map-overview', onToggleOverview)
 
+    // 3. Focus vào nhân vật / nông trại khi click icon Nông Trại
+    const onFocusPlayer = () => {
+      if (this.isOverview) {
+        this.setMapOverview(false)
+        window.dispatchEvent(
+          new CustomEvent('farm-overview-changed', { detail: { overview: false } })
+        )
+      }
+      if (this.player?.sprite) {
+        this.cameras.main.pan(this.player.sprite.x, this.player.sprite.y, 400, 'Cubic.easeInOut')
+        this.cameras.main.zoomTo(this.defaultZoom, 400, 'Cubic.easeInOut')
+        this.time.delayedCall(420, () => {
+          if (!this.isOverview && this.player?.sprite) {
+            this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12)
+          }
+        })
+      }
+    }
+    window.addEventListener('focus-player', onFocusPlayer)
+
     // Phím tắt 'M' mở bản đồ
     const mKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.M)
     mKey?.on('down', () => {
@@ -220,6 +240,7 @@ export class FarmScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       window.removeEventListener('farm-tool-changed', onToolChange)
       window.removeEventListener('toggle-map-overview', onToggleOverview)
+      window.removeEventListener('focus-player', onFocusPlayer)
     })
   }
 
