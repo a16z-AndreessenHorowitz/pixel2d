@@ -1,8 +1,16 @@
 .app-navbar {
-  background: rgba(255, 252, 244, 0.94);
-  border-bottom: 1px solid var(--line);
-  box-shadow: 0 10px 24px rgba(45, 60, 38, 0.08);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(255, 252, 244, 0.96);
+  border-bottom: 2px solid var(--line);
+  box-shadow: 0 4px 18px rgba(45, 60, 38, 0.08);
   backdrop-filter: blur(14px);
+  padding: 4px 0;
+  min-height: 52px;
+  height: auto;
 }
 
 .brand-mark {
@@ -14,35 +22,196 @@
 }
 
 .brand-icon {
-  align-items: center;
-  background: #315d3a;
-  box-shadow:
-    inset 0 -4px 0 rgba(0, 0, 0, 0.18),
-    4px 4px 0 #d49b3a;
-  color: #fff7d6;
-  display: inline-flex;
-  font-size: 0.75rem;
-  height: 34px;
-  justify-content: center;
-  line-height: 1;
-  width: 34px;
+  font-size: 1.3rem;
+}
+
+.brand-text {
+  font-family: inherit;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
 }
 
 .nav-links {
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
 }
 
 .nav-links .nav-link {
   border-radius: 6px;
   color: var(--muted);
   font-weight: 700;
-  padding-inline: 14px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
 }
 
 .nav-links .nav-link.active,
 .nav-links .nav-link:hover {
   background: #eef5dd;
   color: var(--ink);
+}
+
+.nav-action-btn {
+  background: transparent;
+  border: 1px solid #c7d2b8;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.nav-action-btn.hub-btn {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #0369a1;
+}
+
+.nav-action-btn.hub-btn:hover {
+  background: #bae6fd;
+  transform: translateY(-1px);
+}
+
+.nav-action-btn.shop-btn {
+  background: #fff3e0;
+  border-color: #ffb74d;
+  color: #e65100;
+}
+
+.nav-action-btn.shop-btn:hover {
+  background: #ffe0b2;
+  transform: translateY(-1px);
+}
+
+.nav-action-btn.claim-btn {
+  background: #f3e5f5;
+  border-color: #ba68c8;
+  color: #6a1b9a;
+}
+
+.nav-action-btn.claim-btn:hover {
+  background: #e1bee7;
+  transform: translateY(-1px);
+}
+
+/* ── Audio Controls Group ── */
+.audio-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+}
+
+.audio-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.audio-toggle-btn--active {
+  background: #e0f2fe;
+  border: 1.5px solid #0284c7;
+  color: #0369a1;
+}
+
+.audio-toggle-btn--active:hover {
+  background: #bae6fd;
+}
+
+.audio-toggle-btn--muted {
+  background: #f1f5f9;
+  border: 1.5px solid #94a3b8;
+  color: #64748b;
+  opacity: 0.75;
+}
+
+.audio-toggle-btn--muted:hover {
+  background: #e2e8f0;
+  opacity: 1;
+}
+
+.audio-text {
+  font-size: 0.72rem;
+}
+
+.auth-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #27ae60;
+  border: 2px solid #1e824c;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #1e824c;
+  transition: transform 0.1s ease, filter 0.15s ease;
+  white-space: nowrap;
+}
+
+.auth-nav-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #e8f5e9;
+  border: 2px solid #4caf50;
+  color: #1b5e20;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.user-profile-badge:hover {
+  background: #c8e6c9;
+  transform: translateY(-1px);
+}
+
+.user-profile-badge .user-icon {
+  font-size: 1rem;
+}
+
+.user-profile-badge .user-name {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-profile-badge .user-online-dot {
+  width: 7px;
+  height: 7px;
+  background: #2e7d32;
+  border-radius: 50%;
+  box-shadow: 0 0 5px #4caf50;
+}
+
+.navbar-web3-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .coin-balance {
@@ -53,10 +222,11 @@
   color: #4f3515;
   display: inline-flex;
   font-weight: 800;
-  gap: 8px;
-  min-height: 38px;
-  padding: 6px 10px;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 8px;
   white-space: nowrap;
+  font-size: 0.85rem;
 }
 
 .coin-dot {
@@ -65,12 +235,190 @@
   border-radius: 50%;
   box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.16);
   display: inline-block;
-  height: 18px;
+  height: 14px;
+  width: 14px;
+}
+
+.web3-connected-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pixel-token-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #ede7f6;
+  border: 2px solid #7e57c2;
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #4527a0;
+  font-weight: 800;
+  font-size: 0.8rem;
+  box-shadow: inset 0 -2px 0 rgba(126, 87, 194, 0.3);
+  white-space: nowrap;
+}
+
+.token-amount {
+  font-size: 0.88rem;
+}
+
+.token-symbol {
+  font-size: 0.72rem;
+  color: #5e35b1;
+}
+
+.faucet-pill-btn {
+  background: #e1f5fe;
+  border: 2px solid #039be5;
+  color: #0277bd;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.faucet-pill-btn:hover:not(:disabled) {
+  background: #b3e5fc;
+}
+
+.faucet-pill-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wallet-address-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #f1f2f6;
+  border: 2px solid #ced6e0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2f3542;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wallet-address-pill:hover {
+  border-color: #ff4757;
+  color: #ff4757;
+  background: #ffeaa7;
+}
+
+.online-indicator {
+  width: 7px;
+  height: 7px;
+  background: #2ed573;
+  border-radius: 50%;
+  box-shadow: 0 0 5px #2ed573;
+}
+
+.connect-metamask-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f39c12;
+  border: 2px solid #d35400;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #d35400;
+  transition: transform 0.1s ease, filter 0.15s ease;
+  white-space: nowrap;
+}
+
+.connect-metamask-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.connect-metamask-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.metamask-fox-icon {
   width: 18px;
+  height: 18px;
+}
+
+/* ── Responsive breakpoints ── */
+@media (max-width: 1250px) {
+  .nav-links {
+    margin-left: 6px;
+    gap: 4px;
+  }
+  .nav-links .nav-link {
+    padding: 4px 8px;
+    font-size: 0.82rem;
+  }
+  .nav-action-btn {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 1100px) {
+  .brand-text {
+    display: none; /* Rút gọn thương hiệu thành biểu tượng 🌾 khi cửa sổ MetaMask mở */
+  }
+  .navbar-web3-actions {
+    gap: 5px;
+  }
 }
 
 @media (max-width: 991px) {
-  .coin-balance {
-    margin-top: 12px;
+  .brand-text {
+    display: inline;
+  }
+  .navbar-collapse {
+    background: rgba(255, 252, 244, 0.98);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ded6c2;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+    margin-top: 8px;
+  }
+  .nav-links {
+    margin: 6px 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .navbar-web3-actions {
+    margin-top: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .web3-connected-group {
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  .pixel-token-pill,
+  .wallet-address-pill,
+  .faucet-pill-btn,
+  .coin-balance,
+  .auth-nav-btn,
+  .user-profile-badge,
+  .connect-metamask-btn {
+    justify-content: center;
+    width: 100%;
   }
 }

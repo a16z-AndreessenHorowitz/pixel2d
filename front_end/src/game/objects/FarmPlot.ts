@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import type { CropDefinition, CropId } from '../data/crops'
 import { getCropById } from '../data/crops'
+import { soundEngine } from '../../audio/SoundEngine'
 
 /**
  * Trạng thái ô đất:
@@ -9,7 +10,7 @@ import { getCropById } from '../data/crops'
  *  watered → đã tưới, cây đang lớn (timer chạy)
  *  mature  → cây đã trưởng thành, sẵn sàng thu hoạch
  */
-export type FarmPlotStatus = 'empty' | 'planted' | 'watered' | 'mature'
+export type FarmPlotStatus = 'empty' | 'tilled' | 'planted' | 'watered' | 'mature'
 
 type FarmPlotOptions = {
   col: number
@@ -35,8 +36,8 @@ export class FarmPlot extends Phaser.GameObjects.Container {
   private cropSprite: Phaser.GameObjects.Image
   private growTimer: Phaser.Time.TimerEvent | null = null
 
-  /** Hiệu ứng ripple xanh khi tưới nước */
-  private waterRipple: Phaser.GameObjects.Arc | null = null
+
+
 
   // Progress Bar
   private progressBg: Phaser.GameObjects.Rectangle
@@ -45,6 +46,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
   private cropScale: number = 0.28
   private onHarvestCallback?: (crop: CropDefinition) => void
+  private isHarvesting: boolean = false
 
   constructor(scene: Phaser.Scene, options: FarmPlotOptions) {
     super(scene, options.x, options.y)
@@ -58,7 +60,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     this.setName(`farm-plot-${this.row}-${this.col}`)
 
     // ── Dirt base ──
-    this.dirtImage = scene.add.image(0, 0, 'dirt-initial')
+    this.dirtImage = scene.add.image(0, 0, 'dirt-empty')
     this.dirtImage.setDisplaySize(options.size, options.size)
     this.dirtImage.setInteractive({ useHandCursor: true })
     this.dirtImage.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
@@ -95,12 +97,27 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
-  /** Gieo hạt vào ô đất trống. Không làm gì nếu ô đã có cây. */
-  plant(cropId: CropId) {
+  /** Xới đất bằng Cuốc (Hoe / Gold Hoe). Chuyển ô đất từ empty sang tilled. */
+  till(isGold: boolean = false) {
     if (this.status !== 'empty') return
+    soundEngine.playTill()
+    this.setStatus('tilled')
+    this.animateBounce()
+    this.animateTill()
+    if (isGold) {
+      this.showFloatingText('✨ Cuốc Vàng xới đất!', '#ffd700')
+    } else {
+      this.showFloatingText('⛏️ Xới đất!', '#a8e6cf')
+    }
+  }
+
+  /** Gieo hạt vào ô đất đã xới (tilled). Không làm gì nếu ô chưa xới hoặc đã có cây. */
+  plant(cropId: CropId) {
+    if (this.status !== 'tilled') return
     this.cropId = cropId
     const crop = getCropById(cropId)
     this.cropScale = (this.size / 44) * (crop.scale ?? 0.28)
+    soundEngine.playPlant()
     this.setStatus('planted')
     this.animateBounce()
     this.showFloatingText('🌱')
@@ -109,60 +126,138 @@ export class FarmPlot extends Phaser.GameObjects.Container {
   /** Tưới nước. Chỉ hoạt động khi đã gieo hạt (planted). */
   water() {
     if (this.status !== 'planted') return
+    soundEngine.playWater()
     this.setStatus('watered')
     this.animateBounce()
     this.showFloatingText('💧')
     this.startGrowTimer()
   }
 
-  /** Thu hoạch. Chỉ hoạt động khi mature. */
+  /** Thu hoạch. Chỉ hoạt động khi mature. Chặn spam click/autoclicker. */
   harvest() {
-    if (this.status !== 'mature') return
-    const crop = getCropById(this.cropId!)
+    if (this.status !== 'mature' || this.isHarvesting) return
+    this.isHarvesting = true
 
+    const crop = getCropById(this.cropId!)
+    soundEngine.playHarvest()
     this.showFloatingText(`+${crop.harvestCoins} 🪙`, '#ffd700')
     this.animatePop()
     this.onHarvestCallback?.(crop)
 
-    // Reset về empty sau animation nhỏ
+    // Khóa trạng thái ngay lập tức về empty để tránh double-harvest exploit
+    this.status = 'empty'
+
     this.scene.time.delayedCall(300, () => {
       this.growTimer?.remove()
       this.growTimer = null
       this.progressTween?.remove()
       this.progressTween = null
       this.cropId = null
-      this.setStatus('empty')
+      this.isHarvesting = false
+      this.renderStatus()
     })
   }
 
   /** Xử lý click từ người chơi với tool đang chọn */
   handleTool(tool: string) {
+    // 1. Xử lý trường hợp ô đất đã xới (tilled)
+    if (this.status === 'tilled') {
+      if (tool.endsWith('-seed')) {
+        const cropId = tool.replace('-seed', '') as CropId
+        const plantEvent = new CustomEvent('farm-plant-crop', {
+          detail: { seedId: tool, cropId },
+          cancelable: true,
+        })
+        window.dispatchEvent(plantEvent)
+
+        if (!plantEvent.defaultPrevented) {
+          // Chỉ trừ năng lượng khi ĐÃ tiêu hao hạt giống thành công
+          const energyEvent = new CustomEvent('farm-action-energy', {
+            detail: { cost: 1, action: 'farming' },
+            cancelable: true,
+          })
+          window.dispatchEvent(energyEvent)
+
+          this.plant(cropId)
+          window.dispatchEvent(new CustomEvent('farm-plant-crop-success', { detail: { cropId } }))
+        } else {
+          // Hết hạt giống: Không trừ năng lượng, thông báo và điều hướng mở Cửa hàng
+          this.shake()
+          this.showFloatingText('Hết hạt giống! 🛒 Mua ở Tiệm', '#ff6b6b')
+          window.dispatchEvent(
+            new CustomEvent('farm-out-of-seeds', {
+              detail: { seedId: tool, cropId },
+            }),
+          )
+        }
+      } else if (tool === 'hoe' || tool === 'gold-hoe') {
+        this.animateBounce()
+        this.showFloatingText('Đất đã được cày xới!')
+      } else {
+        this.shake()
+        this.showFloatingText('🌱 Cần chọn hạt giống để gieo!', '#ffd166')
+      }
+      return
+    }
+
+    // 2. Xác thực hành động hợp lệ cho các trạng thái khác
+    const isActionValid =
+      (this.status === 'empty' && (tool === 'hoe' || tool === 'gold-hoe')) ||
+      (this.status === 'planted' && (tool === 'watering-can' || tool === 'gold-watering-can')) ||
+      (this.status === 'mature' && (tool === 'sickle' || tool === 'gold-sickle'))
+
+    if (isActionValid) {
+      // Công cụ Vàng NFT chỉ tốn 1 Năng lượng (ưu đãi NFT Buff), công cụ thường tốn 2
+      const isGoldTool = tool.startsWith('gold-')
+      const energyCost = isGoldTool ? 1 : 2
+
+      const energyEvent = new CustomEvent('farm-action-energy', {
+        detail: { cost: energyCost, action: 'farming' },
+        cancelable: true,
+      })
+      window.dispatchEvent(energyEvent)
+
+      if (energyEvent.defaultPrevented) {
+        this.shake()
+        this.showFloatingText('⚡ Kiệt sức! Hãy ăn nông sản!', '#ff6b6b')
+        return
+      }
+    }
+
     switch (this.status) {
       case 'empty':
-        // Chỉ cho phép dùng seed tool
-        if (tool.endsWith('-seed')) {
-          const cropId = tool.replace('-seed', '') as CropId
-          this.plant(cropId)
+        if (tool === 'hoe' || tool === 'gold-hoe') {
+          this.till(tool === 'gold-hoe')
+        } else if (tool.endsWith('-seed')) {
+          this.shake()
+          this.showFloatingText('⛏️ Cần cuốc đất trước khi gieo!', '#ffd166')
         } else {
           this.shake()
         }
         break
+
       case 'planted':
-        if (tool === 'watering-can') {
+        if (tool === 'watering-can' || tool === 'gold-watering-can') {
           this.water()
+        } else if (tool === 'hoe' || tool === 'gold-hoe') {
+          this.shake()
+          this.showFloatingText('Đất đã có mầm cây!')
         } else {
           this.shake()
         }
         break
+
       case 'watered':
         // Đang lớn, chưa thu hoạch được → shake để thông báo
         this.shake()
         break
+
       case 'mature':
-        if (tool === 'sickle') {
+        if (tool === 'sickle' || tool === 'gold-sickle') {
           this.harvest()
         } else {
           this.animateBounce()
+          this.showFloatingText('Dùng Liềm để thu hoạch!', '#ffd166')
         }
         break
     }
@@ -179,6 +274,11 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     if (!this.cropId) return
     const crop = getCropById(this.cropId)
 
+
+
+    const multiplier = (this.scene.registry.get('growDurationMultiplier') as number) || 1.0
+    const growDuration = Math.max(1000, Math.round(crop.growDurationMs * multiplier))
+
     // Nếu đã có timer cũ thì huỷ
     this.growTimer?.remove()
     this.progressTween?.remove()
@@ -191,11 +291,11 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     this.progressTween = this.scene.tweens.add({
       targets: this.progressBar,
       scaleX: 1,
-      duration: crop.growDurationMs,
+      duration: growDuration,
       ease: 'Linear'
     })
 
-    this.growTimer = this.scene.time.delayedCall(crop.growDurationMs, () => {
+    this.growTimer = this.scene.time.delayedCall(growDuration, () => {
       if (this.status === 'watered') {
         this.setStatus('mature')
         this.animatePop()
@@ -208,7 +308,7 @@ export class FarmPlot extends Phaser.GameObjects.Container {
     // Texture đất
     this.dirtImage.setTexture(this.getDirtTexture())
 
-    if (this.status === 'empty') {
+    if (this.status === 'empty' || this.status === 'tilled') {
       this.cropSprite.setVisible(false)
       this.progressBg.setVisible(false)
       this.progressBar.setVisible(false)
@@ -222,6 +322,8 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
     if (!this.cropId) return
     const crop = getCropById(this.cropId)
+
+
     this.cropScale = (this.size / 44) * (crop.scale ?? 0.28)
     this.cropSprite.setScale(this.cropScale)
     this.cropSprite.setTexture(this.getCropFrame())
@@ -230,17 +332,40 @@ export class FarmPlot extends Phaser.GameObjects.Container {
 
   private getDirtTexture(): string {
     switch (this.status) {
-      case 'planted': return 'dirt-planted'
+      case 'tilled':
+      case 'planted':
+        return 'dirt-tilled'
       case 'watered':
-      case 'mature': return 'dirt-watered'
+      case 'mature':
+        return 'dirt-watered'
       case 'empty':
-      default: return 'dirt-initial'
+      default:
+        return 'dirt-empty'
     }
+  }
+
+  private animateTill() {
+    const baseScaleX = this.size / (this.dirtImage.width || this.size)
+    const baseScaleY = this.size / (this.dirtImage.height || this.size)
+
+    this.scene.tweens.add({
+      targets: this.dirtImage,
+      scaleX: baseScaleX * 1.08,
+      scaleY: baseScaleY * 0.94,
+      duration: 80,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.dirtImage.setDisplaySize(this.size, this.size)
+      },
+    })
   }
 
   private getCropFrame(): string {
     if (!this.cropId) return '__DEFAULT'
     const crop = getCropById(this.cropId)
+
+
     switch (this.status) {
       case 'planted': return crop.frames[0]  // Hạt giống trên đất
       case 'watered': return crop.frames[1]  // Cây con đang lớn

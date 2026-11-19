@@ -133,6 +133,10 @@ export class Player {
     }
   }
 
+  getFacing(): FacingDirection {
+    return this.facing
+  }
+
   private updateFacing(velocityX: number, velocityY: number) {
     if (Math.abs(velocityX) >= Math.abs(velocityY) && velocityX !== 0) {
       this.facing = velocityX > 0 ? 'right' : 'left'

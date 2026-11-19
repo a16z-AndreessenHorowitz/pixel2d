@@ -1,12 +1,33 @@
-export type InventoryItemId =
+import type { FishId } from '../fishing/fishingType'
+
+export type ToolId =
   | 'watering-can'
   | 'sickle'
   | 'hoe'
+  | 'fishing-rod'
+  | 'gold-watering-can'
+  | 'gold-sickle'
+  | 'gold-hoe'
+
+export type SeedId =
   | 'corn-seed'
   | 'rice-seed'
   | 'strawberry-seed'
   | 'pumpkin-seed'
   | 'watermelon-seed'
+
+export type HarvestedCropId =
+  | 'corn'
+  | 'rice'
+  | 'strawberry'
+  | 'pumpkin'
+  | 'watermelon'
+
+export type InventoryItemId =
+  | ToolId
+  | SeedId
+  | HarvestedCropId
+  | FishId
 
 export type InventoryItem = {
   id: InventoryItemId
@@ -21,167 +42,209 @@ export type InventorySlot = InventoryItem | null
 export const INVENTORY_SIZE = 20
 
 /*
- * Danh sách định nghĩa item.
- *
- * Đây là "database" nhỏ của item.
- * Toolbar có thể lấy thông tin icon/label từ đây
- * mà không cần item phải tồn tại trong Inventory.
+ * Danh sách định nghĩa item (Database item đầy đủ của game).
  */
 export const ITEM_DEFINITIONS: Record<
   InventoryItemId,
   Omit<InventoryItem, 'quantity'>
 > = {
+  // ── Standard Tools ──
   'watering-can': {
     id: 'watering-can',
     label: 'BÌNH TƯỚI',
     icon: '/assets/tools/watering-can.png',
     stackable: false,
   },
-
   sickle: {
     id: 'sickle',
     label: 'LIỀM',
     icon: '/assets/tools/sickle.png',
     stackable: false,
   },
-
   hoe: {
     id: 'hoe',
     label: 'CUỐC',
     icon: '/assets/tools/hoe.png',
     stackable: false,
   },
+  'fishing-rod': {
+    id: 'fishing-rod',
+    label: 'CẦN CÂU',
+    icon: '/assets/fishing/fishing-rod.png',
+    stackable: false,
+  },
 
+  // ── Gold Tools (NFT Buffs) ──
+  'gold-watering-can': {
+    id: 'gold-watering-can',
+    label: 'BÌNH VÀNG',
+    icon: '/assets/tools/bloomseed/Watering_Can/Watering_Can_Gold_Down.png',
+    stackable: false,
+  },
+  'gold-sickle': {
+    id: 'gold-sickle',
+    label: 'LIỀM VÀNG',
+    icon: '/assets/tools/bloomseed/Sickle/Sickle_Gold_Down.png',
+    stackable: false,
+  },
+  'gold-hoe': {
+    id: 'gold-hoe',
+    label: 'CUỐC VÀNG',
+    icon: '/assets/tools/bloomseed/Hoe/Hoe_Gold_Down.png',
+    stackable: false,
+  },
+
+  // ── Seeds ──
   'corn-seed': {
     id: 'corn-seed',
-    label: 'BẮP',
+    label: 'HẠT BẮP',
     icon: '/assets/tools/corn-seed.png',
     stackable: true,
   },
-
   'rice-seed': {
     id: 'rice-seed',
-    label: 'LÚA',
+    label: 'HẠT LÚA',
     icon: '/assets/tools/rice-seed.png',
     stackable: true,
   },
-
   'strawberry-seed': {
     id: 'strawberry-seed',
-    label: 'DÂU',
+    label: 'HẠT DÂU',
     icon: '/assets/tools/strawberry-seed.png',
     stackable: true,
   },
-
   'pumpkin-seed': {
     id: 'pumpkin-seed',
-    label: 'BÍ NGÔ',
+    label: 'HẠT BÍ',
     icon: '/assets/tools/pumpkin-seed.png',
     stackable: true,
   },
-
   'watermelon-seed': {
     id: 'watermelon-seed',
-    label: 'DƯA HẤU',
+    label: 'HẠT DƯA',
     icon: '/assets/tools/watermelon-seed.png',
+    stackable: true,
+  },
+
+  // ── Harvested Crops (Nông sản thu hoạch) ──
+  corn: {
+    id: 'corn',
+    label: 'BẮP (CỦ)',
+    icon: '/assets/crops/corn-3.png',
+    stackable: true,
+  },
+  rice: {
+    id: 'rice',
+    label: 'BÓ LÚA',
+    icon: '/assets/crops/rice-3.png',
+    stackable: true,
+  },
+  strawberry: {
+    id: 'strawberry',
+    label: 'DÂU TÂY',
+    icon: '/assets/crops/strawberry-3.png',
+    stackable: true,
+  },
+  pumpkin: {
+    id: 'pumpkin',
+    label: 'BÍ NGÔ',
+    icon: '/assets/crops/pumpkin-3.png',
+    stackable: true,
+  },
+  watermelon: {
+    id: 'watermelon',
+    label: 'DƯA HẤU',
+    icon: '/assets/crops/watermelon-3.png',
+    stackable: true,
+  },
+
+  // ── Fish (Cá từ minigame câu cá) ──
+  carp: {
+    id: 'carp',
+    label: 'CÁ CHÉP',
+    icon: '/assets/fishing/fish1_processed/koi.png',
+    stackable: true,
+  },
+  tilapia: {
+    id: 'tilapia',
+    label: 'CÁ RÔ PHI',
+    icon: '/assets/fishing/fish1_processed/tilapia.png',
+    stackable: true,
+  },
+  catfish: {
+    id: 'catfish',
+    label: 'CÁ TRÊ',
+    icon: '/assets/fishing/fish1_processed/catfish.png',
+    stackable: true,
+  },
+  salmon: {
+    id: 'salmon',
+    label: 'CÁ HỒI',
+    icon: '/assets/fishing/fish1_processed/tuna.png',
+    stackable: true,
+  },
+  'golden-fish': {
+    id: 'golden-fish',
+    label: 'CÁ VÀNG',
+    icon: '/assets/fishing/golden-fish.png',
     stackable: true,
   },
 }
 
 /*
- * Inventory mặc định.
- *
- * Toolbar và Inventory KHÔNG dùng chung item nữa.
- * Đây là hai khu vực chứa item độc lập.
+ * Thực phẩm có thể ăn để hồi phục Năng lượng (⚡)
  */
-export const DEFAULT_INVENTORY: InventorySlot[] = [
-  null,
-  null,
-  null,
-  {
-    ...ITEM_DEFINITIONS['corn-seed'],
-    quantity: 10,
-  },
-  {
-    ...ITEM_DEFINITIONS['rice-seed'],
-    quantity: 10,
-  },
-  {
-    ...ITEM_DEFINITIONS['strawberry-seed'],
-    quantity: 10,
-  },
-  {
-    ...ITEM_DEFINITIONS['pumpkin-seed'],
-    quantity: 10,
-  },
-  {
-    ...ITEM_DEFINITIONS['watermelon-seed'],
-    quantity: 10,
-  },
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-]
+export const EDIBLE_ITEMS: Record<string, { energy: number; label: string }> = {
+  corn: { energy: 15, label: 'Bắp ngô (+15⚡)' },
+  rice: { energy: 12, label: 'Bó lúa (+12⚡)' },
+  strawberry: { energy: 10, label: 'Dâu tây (+10⚡)' },
+  pumpkin: { energy: 25, label: 'Bí ngô (+25⚡)' },
+  watermelon: { energy: 20, label: 'Dưa hấu (+20⚡)' },
+  carp: { energy: 18, label: 'Cá chép (+18⚡)' },
+  tilapia: { energy: 15, label: 'Cá rô phi (+15⚡)' },
+  catfish: { energy: 22, label: 'Cá trê (+22⚡)' },
+  salmon: { energy: 28, label: 'Cá hồi (+28⚡)' },
+  'golden-fish': { energy: 35, label: 'Cá vàng (+35⚡)' },
+}
 
 /*
- * Toolbar mặc định.
- *
- * Toolbar tự chứa item, không phụ thuộc Inventory.
+ * Inventory mặc định ban đầu: 20 ô trống hoàn toàn (người chơi phải trồng hoặc mua để có thêm)
+ */
+export const DEFAULT_INVENTORY: InventorySlot[] = Array(INVENTORY_SIZE).fill(null)
+
+/*
+ * Toolbar mặc định 8 slot (phím tắt 1 - 8)
+ * Chỉ cấp 4 công cụ cơ bản + 5 Hạt Bắp khởi nghiệp
  */
 export const DEFAULT_TOOLBAR: (InventoryItem | null)[] = [
-  {
-    ...ITEM_DEFINITIONS['watering-can'],
-    quantity: 1,
-  },
-  {
-    ...ITEM_DEFINITIONS['sickle'],
-    quantity: 1,
-  },
-  {
-    ...ITEM_DEFINITIONS['hoe'],
-    quantity: 1,
-  },
-  {
-    ...ITEM_DEFINITIONS['corn-seed'],
-    quantity: 10,
-  },
-  {
-    ...ITEM_DEFINITIONS['rice-seed'],
-    quantity: 10,
-  },
-  {
-    ...ITEM_DEFINITIONS['strawberry-seed'],
-    quantity: 10,
-  },
-  {
-    ...ITEM_DEFINITIONS['pumpkin-seed'],
-    quantity: 10,
-  },
-  {
-    ...ITEM_DEFINITIONS['watermelon-seed'],
-    quantity: 10,
-  },
+  { ...ITEM_DEFINITIONS['watering-can'], quantity: 1 },
+  { ...ITEM_DEFINITIONS['sickle'], quantity: 1 },
+  { ...ITEM_DEFINITIONS['hoe'], quantity: 1 },
+  { ...ITEM_DEFINITIONS['fishing-rod'], quantity: 1 },
+  { ...ITEM_DEFINITIONS['corn-seed'], quantity: 5 },
+  null,
+  null,
+  null,
 ]
 
-const STORAGE_KEY = 'pixel-farm-inventory-v2'
+const STORAGE_KEY_PREFIX = 'pixel-farm-inventory-v3'
 
 type SavedInventory = {
   inventory: InventorySlot[]
   toolbar: (InventoryItem | null)[]
 }
 
-export function loadInventory(): SavedInventory {
+export function getStorageKey(account?: string | null): string {
+  if (account && typeof account === 'string' && account.trim().length > 0) {
+    return `${STORAGE_KEY_PREFIX}-${account.trim().toLowerCase()}`
+  }
+  return `${STORAGE_KEY_PREFIX}-guest`
+}
+
+export function loadInventory(account?: string | null): SavedInventory {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const key = getStorageKey(account)
+    const raw = localStorage.getItem(key)
 
     if (!raw) {
       return {
@@ -192,21 +255,16 @@ export function loadInventory(): SavedInventory {
 
     const parsed = JSON.parse(raw) as SavedInventory
 
-    if (
-      !Array.isArray(parsed.inventory) ||
-      !Array.isArray(parsed.toolbar)
-    ) {
+    if (!Array.isArray(parsed.inventory) || !Array.isArray(parsed.toolbar)) {
       throw new Error('Invalid inventory data')
     }
 
     const inventory = [...parsed.inventory]
-
     while (inventory.length < INVENTORY_SIZE) {
       inventory.push(null)
     }
 
     const toolbar = [...parsed.toolbar]
-
     while (toolbar.length < 8) {
       toolbar.push(null)
     }
@@ -226,14 +284,13 @@ export function loadInventory(): SavedInventory {
 export function saveInventory(
   inventory: InventorySlot[],
   toolbar: (InventoryItem | null)[],
+  account?: string | null,
 ) {
   const data: SavedInventory = {
     inventory,
     toolbar,
   }
 
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(data),
-  )
+  const key = getStorageKey(account)
+  localStorage.setItem(key, JSON.stringify(data))
 }
